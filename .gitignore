@@ -1,0 +1,27 @@
+# Local agent/tooling state
+.codex/
+
+# Dependencies
+node_modules/
+
+# Build and test outputs
+dist/
+build/
+coverage/
+.playwright/
+playwright-report/
+test-results/
+
+# Vite and package manager caches
+.vite/
+.turbo/
+.pnpm-store/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS/editor noise
+.DS_Store
+*.log
