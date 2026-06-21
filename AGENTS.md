@@ -2,7 +2,7 @@
 
 ## Project Goal
 
-Build a local-first web media toolbox for personal creators to quickly preview, edit, manage, and export images and short videos without installing heavy desktop software or uploading private media.
+Build Local Media Studio, a local-first web media workspace for personal creators to quickly preview, edit, manage, and export images and short videos without installing heavy desktop software or uploading private media.
 
 The first version is an image-first and single-video editing MVP. It includes media upload, media library, large preview, previous/next switching, image crop/rotate/flip/resize/adjust/annotate/watermark/background removal/format export, and video preview/trim/speed/manual subtitles/format export. It does not include accounts, cloud storage, backend upload, team collaboration, multi-track timelines, advanced keyframes, AI video generation, or template marketplaces.
 

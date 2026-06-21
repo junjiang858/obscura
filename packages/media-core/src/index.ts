@@ -1,4 +1,4 @@
-import { subtitleCueSchema, type MediaKind, type SubtitleCue } from "@local-media-toolbox/shared";
+import { subtitleCueSchema, type MediaKind, type SubtitleCue } from "@local-media-studio/shared";
 
 const byteUnits = ["B", "KB", "MB", "GB", "TB"] as const;
 

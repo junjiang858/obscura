@@ -1,5 +1,5 @@
 {
-  "name": "@local-media-toolbox/media-core",
+  "name": "@local-media-studio/media-core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,6 +13,6 @@
     "clean": "rm -rf coverage"
   },
   "dependencies": {
-    "@local-media-toolbox/shared": "workspace:*"
+    "@local-media-studio/shared": "workspace:*"
   }
 }

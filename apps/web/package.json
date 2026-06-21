@@ -1,5 +1,5 @@
 {
-  "name": "@local-media-toolbox/web",
+  "name": "@local-media-studio/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@local-media-toolbox/media-core": "workspace:*",
-    "@local-media-toolbox/shared": "workspace:*",
+    "@local-media-studio/media-core": "workspace:*",
+    "@local-media-studio/shared": "workspace:*",
     "@tailwindcss/vite": "^4.1.17",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",

@@ -21,8 +21,8 @@ import {
   formatDuration,
   formatFileSize,
   getNextAssetId,
-} from "@local-media-toolbox/media-core";
-import type { MediaAsset, MediaKind } from "@local-media-toolbox/shared";
+} from "@local-media-studio/media-core";
+import type { MediaAsset, MediaKind } from "@local-media-studio/shared";
 
 type MediaFilter = "all" | MediaKind;
 type MobileTab = "library" | "preview" | "edit" | "export";
@@ -132,10 +132,10 @@ export default function App() {
       }}
     >
       <header className="top-toolbar">
-        <div className="brand-lockup" aria-label="Local Media Toolbox">
+        <div className="brand-lockup" aria-label="Local Media Studio">
           <span className="brand-mark">LM</span>
           <div>
-            <p className="eyebrow">Local Media Toolbox</p>
+            <p className="eyebrow">Local Media Studio</p>
             <h1>本地媒体工作台</h1>
           </div>
         </div>

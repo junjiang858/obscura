@@ -64,10 +64,10 @@ importers:
 
   apps/web:
     dependencies:
-      "@local-media-toolbox/media-core":
+      "@local-media-studio/media-core":
         specifier: workspace:*
         version: link:../../packages/media-core
-      "@local-media-toolbox/shared":
+      "@local-media-studio/shared":
         specifier: workspace:*
         version: link:../../packages/shared
       "@tailwindcss/vite":
@@ -101,7 +101,7 @@ importers:
 
   packages/media-core:
     dependencies:
-      "@local-media-toolbox/shared":
+      "@local-media-studio/shared":
         specifier: workspace:*
         version: link:../shared
 

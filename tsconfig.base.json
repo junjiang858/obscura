@@ -19,8 +19,8 @@
     "exactOptionalPropertyTypes": true,
     "baseUrl": ".",
     "paths": {
-      "@local-media-toolbox/shared": ["packages/shared/src/index.ts"],
-      "@local-media-toolbox/media-core": ["packages/media-core/src/index.ts"]
+      "@local-media-studio/shared": ["packages/shared/src/index.ts"],
+      "@local-media-studio/media-core": ["packages/media-core/src/index.ts"]
     }
   }
 }

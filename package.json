@@ -1,21 +1,21 @@
 {
-  "name": "local-media-toolbox",
+  "name": "local-media-studio",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.31.0",
   "scripts": {
-    "dev": "pnpm --filter @local-media-toolbox/web dev",
-    "build": "pnpm --filter @local-media-toolbox/web build",
-    "typecheck": "pnpm --filter @local-media-toolbox/shared typecheck && pnpm --filter @local-media-toolbox/media-core typecheck && pnpm --filter @local-media-toolbox/web typecheck",
+    "dev": "pnpm --filter @local-media-studio/web dev",
+    "build": "pnpm --filter @local-media-studio/web build",
+    "typecheck": "pnpm --filter @local-media-studio/shared typecheck && pnpm --filter @local-media-studio/media-core typecheck && pnpm --filter @local-media-studio/web typecheck",
     "lint": "eslint .",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "pnpm --filter @local-media-toolbox/shared test && pnpm --filter @local-media-toolbox/media-core test && pnpm --filter @local-media-toolbox/web test",
-    "test:e2e": "pnpm --filter @local-media-toolbox/web test:e2e",
+    "test": "pnpm --filter @local-media-studio/shared test && pnpm --filter @local-media-studio/media-core test && pnpm --filter @local-media-studio/web test",
+    "test:e2e": "pnpm --filter @local-media-studio/web test:e2e",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build",
     "check:e2e": "pnpm check && pnpm test:e2e",
-    "clean": "pnpm --filter @local-media-toolbox/web clean && pnpm --filter @local-media-toolbox/shared clean && pnpm --filter @local-media-toolbox/media-core clean"
+    "clean": "pnpm --filter @local-media-studio/web clean && pnpm --filter @local-media-studio/shared clean && pnpm --filter @local-media-studio/media-core clean"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

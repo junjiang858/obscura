@@ -9,7 +9,7 @@
 ## Reference Project Scan
 
 - Scan completed before purpose confirmation: Yes.
-- Selected direction after reviewing references: First version combines a lightweight local media toolbox with an image-first editing experience. A short-video timeline editor is reserved for later versions.
+- Selected direction after reviewing references: Local Media Studio starts as a lightweight local media workspace with an image-first editing experience. A short-video timeline editor is reserved for later versions.
 
 | Project                     | Direct link                                         | Source type                                  | What to borrow                                                                                                                  | What not to copy blindly                                                               | Direction impact                                                                                                         |
 | --------------------------- | --------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -23,7 +23,7 @@
 
 ## Product Definition
 
-- One-sentence product: A local-first web media toolbox for personal creators to quickly preview, edit, manage, and export images and short videos without installing heavy desktop software or uploading private files.
+- One-sentence product: Local Media Studio is a local-first web media workspace for personal creators to quickly preview, edit, manage, and export images and short videos without installing heavy desktop software or uploading private files.
 - Target users and roles: Personal creators who frequently prepare images and short videos for social platforms, personal projects, blogs, portfolios, or lightweight marketing content.
 - Core scenario: A creator opens the web app, uploads one or more images or videos, switches between assets, applies quick edits, previews the result, and exports a usable file.
 - Current workaround or pain: Users often jump between desktop editors, online converters, background removal sites, and video tools; this is slow, fragmented, and may require uploading private media to third-party services.
