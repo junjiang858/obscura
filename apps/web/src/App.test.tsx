@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import App from "./App";
@@ -87,10 +87,9 @@ describe("media workspace shell", () => {
     expect(screen.queryByRole("button", { name: /export current asset/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^edit$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^export$/i })).not.toBeInTheDocument();
-    const flow = screen.getByRole("list", { name: /creation flow/i });
-    expect(within(flow).getByText("Import")).toBeInTheDocument();
-    expect(within(flow).getByText("Edit")).toBeInTheDocument();
-    expect(within(flow).getByText("Export")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /explore templates/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/4k support/i)).toBeInTheDocument();
+    expect(screen.getByText(/raw photos/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/language/i)).toBeInTheDocument();
   });
 
@@ -126,6 +125,7 @@ describe("media workspace shell", () => {
     expect(screen.getAllByText("cover.png").length).toBeGreaterThan(0);
     expect(screen.getAllByText("clip.mp4").length).toBeGreaterThan(0);
     expect(screen.getByText(/2 assets/i)).toBeInTheDocument();
+    expect(screen.queryByText(/privacy status/i)).not.toBeInTheDocument();
     expect(screen.getByText(/local only/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^edit$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^export$/i })).toBeInTheDocument();
@@ -140,13 +140,15 @@ describe("media workspace shell", () => {
     const image = new File(["image"], "cover photo.png", { type: "image/png" });
 
     await user.upload(input, image);
-    await user.selectOptions(screen.getByLabelText(/crop preset/i), "1:1");
+    await user.click(screen.getByRole("button", { name: /1:1 square/i }));
     await user.click(screen.getByRole("button", { name: /rotate 90/i }));
     await user.click(screen.getByRole("button", { name: /flip horizontal/i }));
     await user.clear(screen.getByLabelText(/output width/i));
     await user.type(screen.getByLabelText(/output width/i), "600");
+    await user.click(screen.getByRole("tab", { name: /adjustments/i }));
     await user.clear(screen.getByLabelText(/brightness/i));
     await user.type(screen.getByLabelText(/brightness/i), "18");
+    await user.click(screen.getByRole("tab", { name: /layers/i }));
     await user.type(screen.getByLabelText(/watermark text/i), "Draft");
     await user.click(screen.getByRole("button", { name: /export current asset/i }));
 

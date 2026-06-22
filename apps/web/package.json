@@ -16,14 +16,14 @@
   "dependencies": {
     "@local-media-studio/media-core": "workspace:*",
     "@local-media-studio/shared": "workspace:*",
+    "@material-symbols-svg/react": "^0.10.1",
     "@tailwindcss/vite": "^4.1.17",
-    "lucide-react": "^0.555.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.17",
     "zod": "^4.1.13",
-    "zustand": "^5.0.8",
-    "zundo": "^2.3.0"
+    "zundo": "^2.3.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0"

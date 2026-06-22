@@ -36,15 +36,18 @@ test("edits and downloads an image without external media upload requests", asyn
     .getByLabel(/choose media files/i)
     .setInputFiles(path.join(import.meta.dirname, "../fixtures/local-image.svg"));
   await expect(page.getByRole("button", { name: /local-image\.svg/i })).toBeVisible();
+  await expect(page.getByText(/privacy status/i)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /^edit$/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /^export$/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /export current asset/i })).toBeVisible();
 
-  await page.getByLabel(/crop preset/i).selectOption("1:1");
+  await page.getByRole("button", { name: /1:1 square/i }).click();
   await page.getByRole("button", { name: /rotate 90/i }).click();
   await page.getByRole("button", { name: /flip horizontal/i }).click();
   await page.getByLabel(/output width/i).fill("512");
+  await page.getByRole("tab", { name: /adjustments/i }).click();
   await page.getByLabel(/brightness/i).fill("14");
+  await page.getByRole("tab", { name: /layers/i }).click();
   await page.getByLabel(/watermark text/i).fill("Draft");
 
   const downloadPromise = page.waitForEvent("download");
@@ -66,6 +69,7 @@ test("uses Chinese for Chinese browsers and allows manual English switching", as
   await expect(page.getByRole("button", { name: /添加媒体/i }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: /开始你的创作/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /导入媒体/i })).toBeVisible();
+  await expect(page.getByText(/隐私状态/i)).toHaveCount(0);
   await expect(page.getByRole("button", { name: /探索模板/i })).toHaveCount(0);
 
   await page.getByLabel(/语言/i).selectOption("en");

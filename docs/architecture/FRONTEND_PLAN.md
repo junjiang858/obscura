@@ -105,6 +105,21 @@
 | `ErrorState`             | Unsupported format, metadata failure, processing failure, export failure                              | App-wide                  |
 | `KeyboardShortcutLayer`  | Previous/next, play/pause, undo/redo, reset, export shortcuts                                         | Workspace                 |
 
+## Frontend File Organization
+
+- `apps/web/src/app`: Thin application composition. `App.tsx` should orchestrate workspace regions and avoid owning detailed panel markup, copy dictionaries, export helpers, icon imports, or store definitions.
+- `apps/web/src/components/studio`: Shared studio UI primitives and region chrome such as `TopToolbar`, `MobileTabs`, `PanelHeader`, `StudioButton`, and `StudioIconButton`.
+- `apps/web/src/components/media-library`: Media library panel, asset cards, filters, empty states, and asset-level status UI.
+- `apps/web/src/components/preview`: Preview stage, empty upload state, selected image/video preview, image panes, and preview toolbar.
+- `apps/web/src/components/editor`: Editor rail, image tool groups, crop preset grid, adjustment sliders, progressive tool rows, and video tool placeholders.
+- `apps/web/src/components/export`: Export panel, export status, and job message UI.
+- `apps/web/src/config`: Static UI, media, workspace, and design-system configuration such as supported filters, tab order, icon sizes, export choices, quality ranges, and crop preset metadata.
+- `apps/web/src/i18n`: Language types, browser-language detection, message dictionaries, and localized label helpers.
+- `apps/web/src/icons`: Studio icon adapter for the approved icon family. Components should import icons from this adapter rather than directly from the icon package.
+- `apps/web/src/stores`: Zustand stores and state selectors.
+- `apps/web/src/utils`: Browser, image export, media asset, formatting, and DOM utility helpers that are not React components.
+- Keep files focused by ownership. A region component may compose smaller local components, but it should not define global copy, media store state, or browser export logic inline.
+
 ## Frontend Architecture
 
 - Framework conventions: React 19 function components, TypeScript, Vite app under `apps/web`.
@@ -129,7 +144,8 @@
   - Use controlled inputs for compact tool controls where immediate preview matters.
   - Validate trim ranges, subtitle cue timing, output format, and numeric values before enabling export.
 - Error and empty-state pattern:
-  - Empty states should provide direct upload actions.
+  - Preview empty state must match the MagicMedia Stitch empty workspace composition: a centered dashed dropzone panel, import-file icon with a small add badge, `Start Your Creation`, helper copy, a single `Import Media` primary action, and supported-format capability tags. Do not render the `Explore Templates` action in v1, and do not use the older Import/Edit/Export process cards for this state.
+  - Empty states should provide direct upload actions, but the persistent upload action belongs to the media library.
   - Error states must explain the failed operation and offer reset/retry where feasible.
   - Unsupported formats/codecs must be visible on the affected asset and in the preview area when selected.
 - Worker interaction pattern:
@@ -140,7 +156,7 @@
 ## Design System
 
 - UI library: shadcn/ui components built on Radix primitives and Tailwind CSS.
-- Icon library: lucide-react, imported icon-by-icon for tool buttons. Keep lucide for v1 because it is already approved in `TECH_STACK.md`; standardize size, stroke width, accessible labels, and tooltip/label support for unfamiliar actions.
+- Icon library: Material Symbols SVG React through a local studio icon adapter. Keep one icon family across the app. Use outlined icons for default tools, filled or heavier symbols for selected and active states, and standard sizes of 16px, 20px, 24px, and 48px.
 - Stitch reference: Google Stitch project `1201636135287513933`, titled MagicMedia Editor, is the current visual baseline for the workspace. The implementation should restore the exposed MagicMedia Studio structure as directly as possible using the available Stitch design system data.
 - Style direction: Professional Studio. The interface should feel like a precise local editing suite: dark, calm, technically capable, and focused on the media canvas. It should avoid a marketing hero, bubbly consumer styling, generic white cards, and decorative dashboard chrome.
 - Visual dials for the current redesign: design variance 5, motion intensity 3, visual density 7. This favors a dense but readable tool workspace with restrained motion and progressive disclosure.
@@ -178,16 +194,28 @@
   - Icon buttons use fixed square dimensions.
   - Preview stage uses responsive bounds and must not jump when controls change.
 - Interaction:
+  - Follow the `design-taste-frontend` constraints where they fit a dense product UI: one design system, one icon family, one dark theme, one accent family, consistent radius, readable controls, full empty/loading/error/disabled states, no duplicate CTA intent, and explicit mobile collapse.
   - Prefer icon buttons with tooltips for common tools: crop, rotate, flip, undo, redo, reset, download, play, pause, previous, next.
   - Undo/redo are global workspace controls in the top app bar when an image is selected, while the right rail keeps the detailed image tool form.
-  - Preview stage controls include zoom out, zoom in, fullscreen/theater, and compare.
+  - The top app bar must not contain the primary Add Media action. The persistent Add Media action lives in the media library header. The preview empty state may keep an Import Media first-run guide action.
+  - Preview stage controls include zoom out, zoom in, fullscreen/theater, and icon-only compare. Do not include a separate Fit to Screen button unless it is wired to a meaningful canvas reset behavior.
+  - Top app bar branding shows the product title only; do not render a secondary "image editing details" subtitle. The language control shows the language icon and select value only; do not render a separate "Language" text label.
+  - Selected preview stage uses one visually dominant curtain/checkerboard canvas background. Avoid stacked checkerboard rectangles or redundant bordered inner canvases that make the stage look like multiple nested frames. Media is centered and supports wheel zoom, trackpad pinch zoom where the browser exposes it through wheel gestures, and pointer-drag panning. Stage-level previous/next edge buttons are not rendered; asset switching stays in the top app bar.
+  - On import, image preview enters an automatic fit-to-canvas mode based on the source media dimensions and the current preview stage bounds. The full source image must be visible for the original/free aspect state without requiring user zoom or pan.
+  - Crop aspect switching must calculate a centered crop viewport that fits inside the available preview stage width and height, including space reserved for the bottom preview toolbar. Tall ratios such as 9:16 must not overflow upward or downward by default.
+  - Preview metadata includes a compact info icon. Hover and keyboard focus reveal a local-only metadata popover with full media name, size, original dimensions when available, MIME/format, and video duration when available. Do not also show file size as separate header text, because that duplicates the info popover.
   - Compare mode shows original and edited image previews side by side instead of only toggling between states.
   - Upload and export must each have only one visible primary entry point to avoid duplicate CTA intent.
-  - Use sliders or number inputs for numeric values.
+  - Media library metadata should show meaningful session information only. Do not render static labels such as "privacy status" when they do not represent a changing state or actionable control.
+  - Preview toolbar buttons must remain clickable and must not be swallowed by stage pan/drag handlers. Dragging starts only from the canvas surface, not from toolbar or metadata controls.
+  - Use themed sliders or number inputs for numeric values. Range controls should visually match the dark studio theme globally instead of using browser-default styling.
   - Use segmented controls/tabs for mode switches.
+  - Crop aspect selection uses the visual preset cards only; do not duplicate the same control as both a select and cards in the inspector. Changing crop aspect must keep the preview centered by resetting or recalculating pan around the current media.
+  - The right inspector groups tools into media-type-aware tabs. Image tabs include transform, adjustments, layers, and background. Video tabs include trim, speed, subtitles, and format. The tab strip supports arrow-button scrolling and native horizontal gesture scrolling.
   - Use menus/selects for output format and quality options.
   - Use text labels beside unfamiliar icons for consumer-facing clarity.
   - Show visible status for export preparation and other asynchronous work.
+  - The export panel must keep the export button fully visible in the inspector rail; dense editor content scrolls independently above it.
   - Use tactile active states and restrained transform/opacity transitions only. Do not add scroll hijacks, decorative marquees, custom cursors, or unmotivated motion to the editing workspace.
   - Selection uses a ghost border in the blue accent family without heavy drop shadows.
 
@@ -204,7 +232,7 @@
 ```
 
 - The preview stage is the visual center of the product.
-- The preview stage owns viewport tools for zoom, fullscreen/theater, and side-by-side comparison.
+- The preview stage owns viewport tools for zoom, fullscreen/theater, side-by-side comparison, pointer panning, and local metadata inspection.
 - The desktop layout follows a fixed-fluid-fixed model: stable media library, flexible canvas, stable inspector/export rail.
 - The media library and editor panel should be dense but not cramped.
 - The upload/empty state should live inside the actual workspace, not as a marketing landing page or oversized guided intro above it.

@@ -42,7 +42,7 @@ Resolve conflicts in this order:
 - Architecture: Single Web App.
 - Runtime and package manager: Node.js 24 LTS with pnpm workspace.
 - Frontend: React 19 + TypeScript + Vite.
-- UI: Tailwind CSS v4 + shadcn/ui + Radix UI + lucide-react.
+- UI: Tailwind CSS v4 + shadcn/ui + Radix UI + Material Symbols SVG React.
 - State and validation: Zustand + zundo + Zod.
 - Image editing: Canvas API + Cropper.js + Konva/react-konva.
 - Background removal: `@imgly/background-removal`, with documented AGPL/license caveat.

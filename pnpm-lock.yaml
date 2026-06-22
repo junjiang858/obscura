@@ -70,12 +70,12 @@ importers:
       "@local-media-studio/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+      "@material-symbols-svg/react":
+        specifier: ^0.10.1
+        version: 0.10.1(react@19.2.7)
       "@tailwindcss/vite":
         specifier: ^4.1.17
         version: 4.3.1(vite@7.3.5(@types/node@24.13.2)(jiti@2.7.0)(lightningcss@1.32.0))
-      lucide-react:
-        specifier: ^0.555.0
-        version: 0.555.0(react@19.2.7)
       react:
         specifier: ^19.2.0
         version: 19.2.7
@@ -719,6 +719,15 @@ packages:
       {
         integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==,
       }
+
+  "@material-symbols-svg/react@0.10.1":
+    resolution:
+      {
+        integrity: sha512-hZWOq4FaS2ETJ+un0r4dD68sQAnP5gnAJxwvDwcnX2qMNmfVT+yZeTzzwSsHlUXIZCL7dW9iWtEd64vmhWjBPw==,
+      }
+    engines: { node: ">=16.0.0" }
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   "@playwright/test@1.61.0":
     resolution:
@@ -2198,14 +2207,6 @@ packages:
         integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==,
       }
 
-  lucide-react@0.555.0:
-    resolution:
-      {
-        integrity: sha512-D8FvHUGbxWBRQM90NZeIyhAvkFfsh3u9ekrMvJ30Z6gnpBHS6HC6ldLg7tL45hwiIz/u66eKDtdA23gwwGsAHA==,
-      }
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
   lz-string@1.5.0:
     resolution:
       {
@@ -3223,6 +3224,10 @@ snapshots:
       "@jridgewell/resolve-uri": 3.1.2
       "@jridgewell/sourcemap-codec": 1.5.5
 
+  "@material-symbols-svg/react@0.10.1(react@19.2.7)":
+    dependencies:
+      react: 19.2.7
+
   "@playwright/test@1.61.0":
     dependencies:
       playwright: 1.61.0
@@ -4067,10 +4072,6 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
-
-  lucide-react@0.555.0(react@19.2.7):
-    dependencies:
-      react: 19.2.7
 
   lz-string@1.5.0: {}
 
