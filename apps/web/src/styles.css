@@ -1005,12 +1005,47 @@ svg {
 
 .watermark-preview {
   position: absolute;
-  right: 16px;
-  bottom: 14px;
   color: rgba(255, 255, 255, 0.86);
   font-size: clamp(14px, 2.2vw, 28px);
   font-weight: 760;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.46);
+}
+
+.watermark-preview.position-bottom-right {
+  right: 16px;
+  bottom: 14px;
+}
+
+.watermark-preview.position-bottom-left {
+  bottom: 14px;
+  left: 16px;
+}
+
+.watermark-preview.position-top-right {
+  top: 14px;
+  right: 16px;
+}
+
+.watermark-preview.position-top-left {
+  top: 14px;
+  left: 16px;
+}
+
+.watermark-preview.position-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.annotation-preview-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: rgba(248, 251, 255, 0.9);
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.42));
 }
 
 .video-preview {
@@ -1201,7 +1236,8 @@ svg {
 
 .crop-control,
 .form-field,
-.adjustment-control {
+.adjustment-control,
+.annotation-controls {
   display: grid;
   gap: 7px;
 }
@@ -1232,6 +1268,49 @@ svg {
 
 .form-field input::placeholder {
   color: var(--muted-low);
+}
+
+.annotation-list {
+  display: grid;
+  gap: 6px;
+}
+
+.annotation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tight);
+  background: rgba(13, 17, 23, 0.42);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.annotation-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-row button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-tight);
+  color: var(--muted);
+}
+
+.annotation-row button:hover {
+  border-color: rgba(255, 113, 113, 0.34);
+  color: #ffb4b4;
+  background: rgba(255, 113, 113, 0.08);
 }
 
 .crop-preset-grid {

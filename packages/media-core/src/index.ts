@@ -10,6 +10,47 @@ const byteUnits = ["B", "KB", "MB", "GB", "TB"] as const;
 export type ImageCropAspect = "free" | "1:1" | "4:5" | "9:16" | "16:9";
 export type ImageAdjustment = "brightness" | "contrast" | "saturation";
 export type ImageExportFormat = "png" | "jpeg" | "webp";
+export type WatermarkPosition =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right"
+  | "center";
+
+type ImageAnnotationBase = {
+  color: string;
+  id: string;
+  x: number;
+  y: number;
+};
+
+export type ImageTextAnnotation = ImageAnnotationBase & {
+  text: string;
+  type: "text";
+};
+
+export type ImageRectangleAnnotation = ImageAnnotationBase & {
+  height: number;
+  type: "rectangle";
+  width: number;
+};
+
+export type ImageArrowAnnotation = ImageAnnotationBase & {
+  endX: number;
+  endY: number;
+  type: "arrow";
+};
+
+export type ImageBrushAnnotation = ImageAnnotationBase & {
+  points: Array<{ x: number; y: number }>;
+  type: "brush";
+};
+
+export type ImageAnnotation =
+  | ImageArrowAnnotation
+  | ImageBrushAnnotation
+  | ImageRectangleAnnotation
+  | ImageTextAnnotation;
 
 export type ImageEditState = {
   cropAspect: ImageCropAspect;
@@ -18,6 +59,8 @@ export type ImageEditState = {
   flipVertical: boolean;
   resizeWidth: number | null;
   watermarkText: string;
+  watermarkPosition: WatermarkPosition;
+  annotations: ImageAnnotation[];
   adjustments: Record<ImageAdjustment, number>;
 };
 
@@ -35,6 +78,9 @@ export type ImageEditAction =
   | { type: "toggle-flip-vertical" }
   | { type: "set-resize-width"; width: number | null }
   | { type: "set-watermark"; text: string }
+  | { type: "set-watermark-position"; position: WatermarkPosition }
+  | { type: "add-annotation"; annotation: ImageAnnotation }
+  | { type: "remove-annotation"; annotationId: string }
   | { type: "set-adjustment"; adjustment: ImageAdjustment; value: number }
   | { type: "undo" }
   | { type: "redo" }
@@ -62,6 +108,8 @@ const defaultImageEditState: ImageEditState = {
   flipVertical: false,
   resizeWidth: null,
   watermarkText: "",
+  watermarkPosition: "bottom-right",
+  annotations: [],
   adjustments: {
     brightness: 0,
     contrast: 0,
@@ -324,6 +372,20 @@ function reduceImageEditState(
       };
     case "set-watermark":
       return { ...cloneImageEditState(state), watermarkText: action.text.slice(0, 120) };
+    case "set-watermark-position":
+      return { ...cloneImageEditState(state), watermarkPosition: action.position };
+    case "add-annotation":
+      return {
+        ...cloneImageEditState(state),
+        annotations: [...state.annotations, normalizeAnnotation(action.annotation)],
+      };
+    case "remove-annotation":
+      return {
+        ...cloneImageEditState(state),
+        annotations: state.annotations.filter(
+          (annotation) => annotation.id !== action.annotationId,
+        ),
+      };
     case "set-adjustment":
       return {
         ...cloneImageEditState(state),
@@ -339,6 +401,62 @@ function cloneImageEditState(state: ImageEditState): ImageEditState {
   return {
     ...state,
     adjustments: { ...state.adjustments },
+    annotations: state.annotations.map(cloneAnnotation),
+  };
+}
+
+function cloneAnnotation(annotation: ImageAnnotation): ImageAnnotation {
+  if (annotation.type === "brush") {
+    return {
+      ...annotation,
+      points: annotation.points.map((point) => ({ ...point })),
+    };
+  }
+
+  return { ...annotation };
+}
+
+function normalizeAnnotation(annotation: ImageAnnotation): ImageAnnotation {
+  const base = {
+    color: annotation.color.slice(0, 32),
+    id: annotation.id.slice(0, 80),
+    x: clamp(annotation.x, 0, 1),
+    y: clamp(annotation.y, 0, 1),
+  };
+
+  if (annotation.type === "text") {
+    return {
+      ...base,
+      text: annotation.text.slice(0, 160),
+      type: "text",
+    };
+  }
+
+  if (annotation.type === "rectangle") {
+    return {
+      ...base,
+      height: clamp(annotation.height, 0.02, 1),
+      type: "rectangle",
+      width: clamp(annotation.width, 0.02, 1),
+    };
+  }
+
+  if (annotation.type === "arrow") {
+    return {
+      ...base,
+      endX: clamp(annotation.endX, 0, 1),
+      endY: clamp(annotation.endY, 0, 1),
+      type: "arrow",
+    };
+  }
+
+  return {
+    ...base,
+    points: annotation.points.map((point) => ({
+      x: clamp(point.x, 0, 1),
+      y: clamp(point.y, 0, 1),
+    })),
+    type: "brush",
   };
 }
 

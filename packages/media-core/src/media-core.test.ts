@@ -73,6 +73,43 @@ describe("media core helpers", () => {
     );
   });
 
+  it("stores image annotations and watermark placement in edit history", () => {
+    const annotatedHistory = applyImageEditAction(
+      applyImageEditAction(initialImageEditHistory(), {
+        annotation: {
+          color: "#f8fbff",
+          id: "annotation-1",
+          text: "Hello",
+          type: "text",
+          x: 0.18,
+          y: 0.24,
+        },
+        type: "add-annotation",
+      }),
+      {
+        position: "top-left",
+        type: "set-watermark-position",
+      },
+    );
+    const annotatedState = getCurrentImageEditState(annotatedHistory);
+    const undoneState = getCurrentImageEditState(
+      applyImageEditAction(annotatedHistory, { type: "undo" }),
+    );
+
+    expect(annotatedState.annotations).toEqual([
+      {
+        color: "#f8fbff",
+        id: "annotation-1",
+        text: "Hello",
+        type: "text",
+        x: 0.18,
+        y: 0.24,
+      },
+    ]);
+    expect(annotatedState.watermarkPosition).toBe("top-left");
+    expect(undoneState.watermarkPosition).toBe("bottom-right");
+  });
+
   it("builds centered crop and resize plans for image export", () => {
     const history = applyImageEditAction(
       applyImageEditAction(initialImageEditHistory(), {

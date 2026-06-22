@@ -1,6 +1,11 @@
-import { buildImageExportPlan } from "@local-media-studio/media-core";
 import type { CSSProperties } from "react";
-import type { ImageEditState, ImageExportFormat } from "@local-media-studio/media-core";
+import { buildImageExportPlan } from "@local-media-studio/media-core";
+import type {
+  ImageAnnotation,
+  ImageEditState,
+  ImageExportFormat,
+  WatermarkPosition,
+} from "@local-media-studio/media-core";
 import type { Copy } from "../i18n";
 import type { WorkspaceAsset } from "../stores/media-store";
 
@@ -85,14 +90,17 @@ export async function exportEditedImage({
   );
   context.restore();
 
+  drawAnnotations(context, state.annotations, canvas.width, canvas.height);
+
   if (state.watermarkText.trim()) {
     context.save();
     context.globalAlpha = 0.78;
     context.fillStyle = "#f8fbff";
     context.font = `${Math.max(16, Math.round(canvas.width * 0.04))}px system-ui, sans-serif`;
-    context.textAlign = "right";
-    context.textBaseline = "bottom";
-    context.fillText(state.watermarkText.trim(), canvas.width - 18, canvas.height - 18);
+    const anchor = getWatermarkAnchor(state.watermarkPosition, canvas.width, canvas.height);
+    context.textAlign = anchor.textAlign;
+    context.textBaseline = anchor.textBaseline;
+    context.fillText(state.watermarkText.trim(), anchor.x, anchor.y);
     context.restore();
   }
 
@@ -165,6 +173,147 @@ export function getCanvasFilter(state: ImageEditState): string {
     `contrast(${100 + state.adjustments.contrast}%)`,
     `saturate(${100 + state.adjustments.saturation}%)`,
   ].join(" ");
+}
+
+function drawAnnotations(
+  context: CanvasRenderingContext2D,
+  annotations: readonly ImageAnnotation[],
+  width: number,
+  height: number,
+) {
+  annotations.forEach((annotation) => {
+    const x = annotation.x * width;
+    const y = annotation.y * height;
+
+    context.save();
+    context.strokeStyle = annotation.color;
+    context.fillStyle = annotation.color;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.lineWidth = Math.max(3, Math.round(Math.min(width, height) * 0.006));
+
+    if (annotation.type === "text") {
+      context.font = `${Math.max(16, Math.round(width * 0.036))}px system-ui, sans-serif`;
+      context.textAlign = "left";
+      context.textBaseline = "top";
+      context.fillText(annotation.text, x, y);
+    }
+
+    if (annotation.type === "rectangle") {
+      context.strokeRect(x, y, annotation.width * width, annotation.height * height);
+    }
+
+    if (annotation.type === "arrow") {
+      drawArrow(context, x, y, annotation.endX * width, annotation.endY * height);
+    }
+
+    if (annotation.type === "brush") {
+      drawBrush(context, annotation.points, width, height);
+    }
+
+    context.restore();
+  });
+}
+
+function drawArrow(
+  context: CanvasRenderingContext2D,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+) {
+  const angle = Math.atan2(endY - startY, endX - startX);
+  const headLength = 18;
+
+  context.beginPath();
+  context.moveTo(startX, startY);
+  context.lineTo(endX, endY);
+  context.stroke();
+
+  context.beginPath();
+  context.moveTo(endX, endY);
+  context.lineTo(
+    endX - headLength * Math.cos(angle - Math.PI / 6),
+    endY - headLength * Math.sin(angle - Math.PI / 6),
+  );
+  context.moveTo(endX, endY);
+  context.lineTo(
+    endX - headLength * Math.cos(angle + Math.PI / 6),
+    endY - headLength * Math.sin(angle + Math.PI / 6),
+  );
+  context.stroke();
+}
+
+function drawBrush(
+  context: CanvasRenderingContext2D,
+  points: ReadonlyArray<{ x: number; y: number }>,
+  width: number,
+  height: number,
+) {
+  if (points.length < 2) {
+    return;
+  }
+
+  context.beginPath();
+  points.forEach((point, index) => {
+    const x = point.x * width;
+    const y = point.y * height;
+
+    if (index === 0) {
+      context.moveTo(x, y);
+      return;
+    }
+
+    context.lineTo(x, y);
+  });
+  context.stroke();
+}
+
+function getWatermarkAnchor(position: WatermarkPosition, width: number, height: number) {
+  const inset = Math.max(18, Math.round(Math.min(width, height) * 0.035));
+
+  if (position === "top-left") {
+    return {
+      x: inset,
+      y: inset,
+      textAlign: "left" as CanvasTextAlign,
+      textBaseline: "top" as CanvasTextBaseline,
+    };
+  }
+
+  if (position === "top-right") {
+    return {
+      x: width - inset,
+      y: inset,
+      textAlign: "right" as CanvasTextAlign,
+      textBaseline: "top" as CanvasTextBaseline,
+    };
+  }
+
+  if (position === "bottom-left") {
+    return {
+      x: inset,
+      y: height - inset,
+      textAlign: "left" as CanvasTextAlign,
+      textBaseline: "bottom" as CanvasTextBaseline,
+    };
+  }
+
+  if (position === "center") {
+    return {
+      x: width / 2,
+      y: height / 2,
+      textAlign: "center" as CanvasTextAlign,
+      textBaseline: "middle" as CanvasTextBaseline,
+    };
+  }
+
+  return {
+    x: width - inset,
+    y: height - inset,
+    textAlign: "right" as CanvasTextAlign,
+    textBaseline: "bottom" as CanvasTextBaseline,
+  };
 }
 
 function triggerBrowserDownload(result: ImageExportResult) {

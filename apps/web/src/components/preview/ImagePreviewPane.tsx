@@ -1,5 +1,9 @@
 import type { CSSProperties } from "react";
-import type { ImageCropAspect, ImageEditState } from "@local-media-studio/media-core";
+import type {
+  ImageAnnotation,
+  ImageCropAspect,
+  ImageEditState,
+} from "@local-media-studio/media-core";
 import type { Copy } from "../../i18n";
 import type { WorkspaceAsset } from "../../stores/media-store";
 import { getImagePreviewStyle } from "../../utils/image-export";
@@ -35,8 +39,11 @@ export function ImagePreviewPane({
           src={asset.objectUrl}
           style={getImagePreviewStyle(imageState)}
         />
+        <AnnotationPreviewOverlay annotations={imageState?.annotations ?? []} />
         {imageState?.watermarkText.trim() ? (
-          <figcaption className="watermark-preview">{imageState.watermarkText.trim()}</figcaption>
+          <figcaption className={`watermark-preview position-${imageState.watermarkPosition}`}>
+            {imageState.watermarkText.trim()}
+          </figcaption>
         ) : null}
       </div>
     </figure>
@@ -64,12 +71,95 @@ export function ImagePreviewPane({
           style={getPreviewFrameStyle(asset, activeAspect, compareBounds)}
         >
           <img alt="" src={asset.objectUrl} style={getImagePreviewStyle(imageState)} />
+          <AnnotationPreviewOverlay annotations={imageState?.annotations ?? []} />
           {imageState?.watermarkText.trim() ? (
-            <figcaption className="watermark-preview">{imageState.watermarkText.trim()}</figcaption>
+            <figcaption className={`watermark-preview position-${imageState.watermarkPosition}`}>
+              {imageState.watermarkText.trim()}
+            </figcaption>
           ) : null}
         </div>
       </figure>
     </div>
+  );
+}
+
+function AnnotationPreviewOverlay({ annotations }: { annotations: readonly ImageAnnotation[] }) {
+  if (annotations.length === 0) {
+    return null;
+  }
+
+  return (
+    <svg aria-hidden="true" className="annotation-preview-overlay" viewBox="0 0 100 100">
+      <defs>
+        <marker
+          id="annotation-arrowhead"
+          markerHeight="5"
+          markerWidth="5"
+          orient="auto"
+          refX="4"
+          refY="2.5"
+        >
+          <path d="M0,0 L5,2.5 L0,5 Z" fill="currentColor" />
+        </marker>
+      </defs>
+      {annotations.map((annotation) => (
+        <AnnotationPreviewItem annotation={annotation} key={annotation.id} />
+      ))}
+    </svg>
+  );
+}
+
+function AnnotationPreviewItem({ annotation }: { annotation: ImageAnnotation }) {
+  const x = annotation.x * 100;
+  const y = annotation.y * 100;
+  const color = annotation.color;
+
+  if (annotation.type === "text") {
+    return (
+      <text fill={color} fontSize="4.2" fontWeight="760" x={x} y={y}>
+        {annotation.text}
+      </text>
+    );
+  }
+
+  if (annotation.type === "rectangle") {
+    return (
+      <rect
+        fill="none"
+        height={annotation.height * 100}
+        stroke={color}
+        strokeWidth="0.7"
+        width={annotation.width * 100}
+        x={x}
+        y={y}
+      />
+    );
+  }
+
+  if (annotation.type === "arrow") {
+    return (
+      <line
+        markerEnd="url(#annotation-arrowhead)"
+        stroke={color}
+        strokeLinecap="round"
+        strokeWidth="0.9"
+        x1={x}
+        x2={annotation.endX * 100}
+        y1={y}
+        y2={annotation.endY * 100}
+      />
+    );
+  }
+
+  return (
+    <polyline
+      fill="none"
+      points={annotation.points.map((point) => `${point.x * 100},${point.y * 100}`).join(" ")}
+      stroke={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="0.8"
+    />
   );
 }
 

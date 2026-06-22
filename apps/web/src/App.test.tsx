@@ -15,18 +15,27 @@ describe("media workspace shell", () => {
 
     getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
       clearRect: vi.fn(),
+      beginPath: vi.fn(),
       drawImage: vi.fn(),
       fillText: vi.fn(),
+      lineTo: vi.fn(),
       measureText: vi.fn(() => ({ width: 96 })),
+      moveTo: vi.fn(),
       restore: vi.fn(),
       rotate: vi.fn(),
       save: vi.fn(),
       scale: vi.fn(),
+      stroke: vi.fn(),
+      strokeRect: vi.fn(),
       translate: vi.fn(),
       set fillStyle(_value: string) {},
       set filter(_value: string) {},
       set font(_value: string) {},
       set globalAlpha(_value: number) {},
+      set lineCap(_value: CanvasLineCap) {},
+      set lineJoin(_value: CanvasLineJoin) {},
+      set lineWidth(_value: number) {},
+      set strokeStyle(_value: string) {},
       set textAlign(_value: CanvasTextAlign) {},
       set textBaseline(_value: CanvasTextBaseline) {},
     } as unknown as CanvasRenderingContext2D);
@@ -150,6 +159,9 @@ describe("media workspace shell", () => {
     await user.type(screen.getByLabelText(/brightness/i), "18");
     await user.click(screen.getByRole("tab", { name: /layers/i }));
     await user.type(screen.getByLabelText(/watermark text/i), "Draft");
+    await user.selectOptions(screen.getByLabelText(/watermark position/i), "top-left");
+    await user.click(screen.getByRole("button", { name: /add text/i }));
+    expect(screen.getAllByText(/text note/i).length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: /export current asset/i }));
 
     expect(await screen.findByText(/export saved/i)).toBeInTheDocument();

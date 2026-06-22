@@ -1,9 +1,23 @@
-import type { ImageEditAction, ImageEditState } from "@local-media-studio/media-core";
+import type {
+  ImageAnnotation,
+  ImageEditAction,
+  ImageEditState,
+  WatermarkPosition,
+} from "@local-media-studio/media-core";
 import type { Copy } from "../../i18n";
 import { StudioIcon } from "../../icons/studio-icons";
 import { AdjustmentControl } from "./AdjustmentControl";
 import { CropPresetGrid } from "./CropPresetGrid";
 import { ProgressiveToolRow } from "./ProgressiveToolRow";
+
+const annotationColor = "#f8fbff";
+const watermarkPositionOptions: Array<{ label: keyof Copy; value: WatermarkPosition }> = [
+  { label: "watermarkBottomRight", value: "bottom-right" },
+  { label: "watermarkBottomLeft", value: "bottom-left" },
+  { label: "watermarkTopRight", value: "top-right" },
+  { label: "watermarkTopLeft", value: "top-left" },
+  { label: "watermarkCenter", value: "center" },
+];
 
 export function ImageEditorPanel({
   activeTab,
@@ -128,6 +142,90 @@ export function ImageEditorPanel({
               value={imageState.watermarkText}
             />
           </div>
+          <div className="form-field">
+            <label htmlFor="watermark-position">{t.watermarkPosition}</label>
+            <select
+              id="watermark-position"
+              onChange={(event) =>
+                onApply({
+                  position: event.currentTarget.value as WatermarkPosition,
+                  type: "set-watermark-position",
+                })
+              }
+              value={imageState.watermarkPosition}
+            >
+              {watermarkPositionOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {t[option.label]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="annotation-controls">
+            <p className="field-label">{t.annotations}</p>
+            <div className="tool-grid two-col">
+              <button
+                className="tool-button"
+                onClick={() =>
+                  onApply({ annotation: createAnnotation("text", t), type: "add-annotation" })
+                }
+                type="button"
+              >
+                <StudioIcon name="textFields" size={18} />
+                <span>{t.addTextAnnotation}</span>
+              </button>
+              <button
+                className="tool-button"
+                onClick={() =>
+                  onApply({ annotation: createAnnotation("rectangle", t), type: "add-annotation" })
+                }
+                type="button"
+              >
+                <StudioIcon name="crop" size={18} />
+                <span>{t.addRectangleAnnotation}</span>
+              </button>
+              <button
+                className="tool-button"
+                onClick={() =>
+                  onApply({ annotation: createAnnotation("arrow", t), type: "add-annotation" })
+                }
+                type="button"
+              >
+                <StudioIcon name="chevronRight" size={18} />
+                <span>{t.addArrowAnnotation}</span>
+              </button>
+              <button
+                className="tool-button"
+                onClick={() =>
+                  onApply({ annotation: createAnnotation("brush", t), type: "add-annotation" })
+                }
+                type="button"
+              >
+                <StudioIcon name="stylusNote" size={18} />
+                <span>{t.addBrushAnnotation}</span>
+              </button>
+            </div>
+            <div aria-label={t.annotations} className="annotation-list">
+              {imageState.annotations.length === 0 ? (
+                <p className="empty-panel-copy">{t.noAnnotations}</p>
+              ) : (
+                imageState.annotations.map((annotation) => (
+                  <div className="annotation-row" key={annotation.id}>
+                    <span>{getAnnotationLabel(annotation, t)}</span>
+                    <button
+                      aria-label={`${t.removeAnnotation}: ${getAnnotationLabel(annotation, t)}`}
+                      onClick={() =>
+                        onApply({ annotationId: annotation.id, type: "remove-annotation" })
+                      }
+                      type="button"
+                    >
+                      <StudioIcon name="delete" size={16} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -146,4 +244,73 @@ export function ImageEditorPanel({
       ) : null}
     </section>
   );
+}
+
+function createAnnotation(type: ImageAnnotation["type"], t: Copy): ImageAnnotation {
+  const id = `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+  if (type === "text") {
+    return {
+      color: annotationColor,
+      id,
+      text: t.annotationText,
+      type: "text",
+      x: 0.16,
+      y: 0.18,
+    };
+  }
+
+  if (type === "rectangle") {
+    return {
+      color: annotationColor,
+      height: 0.26,
+      id,
+      type: "rectangle",
+      width: 0.34,
+      x: 0.18,
+      y: 0.2,
+    };
+  }
+
+  if (type === "arrow") {
+    return {
+      color: annotationColor,
+      endX: 0.72,
+      endY: 0.38,
+      id,
+      type: "arrow",
+      x: 0.32,
+      y: 0.24,
+    };
+  }
+
+  return {
+    color: annotationColor,
+    id,
+    points: [
+      { x: 0.2, y: 0.68 },
+      { x: 0.32, y: 0.6 },
+      { x: 0.46, y: 0.66 },
+      { x: 0.62, y: 0.55 },
+    ],
+    type: "brush",
+    x: 0.2,
+    y: 0.68,
+  };
+}
+
+function getAnnotationLabel(annotation: ImageAnnotation, t: Copy) {
+  if (annotation.type === "text") {
+    return t.annotationText;
+  }
+
+  if (annotation.type === "rectangle") {
+    return t.annotationRectangle;
+  }
+
+  if (annotation.type === "arrow") {
+    return t.annotationArrow;
+  }
+
+  return t.annotationBrush;
 }
