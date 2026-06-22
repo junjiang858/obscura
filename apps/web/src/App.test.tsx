@@ -1,6 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, vi } from "vitest";
+
+const { runImageBackgroundRemovalMock } = vi.hoisted(() => ({
+  runImageBackgroundRemovalMock: vi.fn(),
+}));
+
+vi.mock("./utils/background-removal", () => ({
+  getBackgroundRemovalErrorMessage: (error: unknown, fallback: string) =>
+    error instanceof Error ? error.message : fallback,
+  runImageBackgroundRemoval: runImageBackgroundRemovalMock,
+}));
+
 import App from "./App";
 
 describe("media workspace shell", () => {
@@ -8,6 +19,8 @@ describe("media workspace shell", () => {
   let toBlobSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    runImageBackgroundRemovalMock.mockReset();
+
     Object.defineProperty(window.navigator, "language", {
       configurable: true,
       value: "en-US",
@@ -167,5 +180,39 @@ describe("media workspace shell", () => {
     expect(await screen.findByText(/export saved/i)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /download cover-photo-edited.png/i })).toBeNull();
     expect(toBlobSpy).toHaveBeenCalledWith(expect.any(Function), "image/png", 0.86);
+  });
+
+  it("runs background removal locally and adds the transparent result as a new asset", async () => {
+    const user = userEvent.setup();
+    const sourceImage = new File(["image"], "cover photo.png", { type: "image/png" });
+
+    runImageBackgroundRemovalMock.mockImplementation(({ onProgress }) => {
+      onProgress?.({
+        message: "Removing background",
+        progress: 64,
+        status: "processing",
+      });
+
+      return Promise.resolve({
+        blob: new Blob(["foreground"], { type: "image/png" }),
+        file: new File(["foreground"], "cover-photo-background-removed.png", {
+          type: "image/png",
+        }),
+      });
+    });
+
+    render(<App />);
+
+    await user.upload(screen.getByLabelText(/choose media files/i), sourceImage);
+    await user.click(screen.getByRole("tab", { name: /background/i }));
+    await user.click(screen.getByRole("button", { name: /remove background/i }));
+
+    expect(runImageBackgroundRemovalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: sourceImage,
+      }),
+    );
+    expect(await screen.findAllByText("cover-photo-background-removed.png")).not.toHaveLength(0);
+    expect(screen.getAllByText("cover photo.png").length).toBeGreaterThan(0);
   });
 });

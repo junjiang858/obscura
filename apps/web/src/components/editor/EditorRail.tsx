@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { ImageEditAction, ImageEditState } from "@local-media-studio/media-core";
+import type { WorkerJob } from "@local-media-studio/shared";
 import type { Copy } from "../../i18n";
 import { StudioIcon, type StudioIconName } from "../../icons/studio-icons";
 import type { WorkspaceAsset } from "../../stores/media-store";
@@ -9,15 +10,19 @@ import { ImageEditorPanel } from "./ImageEditorPanel";
 import { VideoEditorPanel } from "./VideoEditorPanel";
 
 export function EditorRail({
+  backgroundRemovalJob,
   imageState,
   isVisible,
   onApplyImageAction,
+  onRemoveBackground,
   selectedAsset,
   t,
 }: {
+  backgroundRemovalJob: WorkerJob | null;
   imageState: ImageEditState | null;
   isVisible: boolean;
   onApplyImageAction: (action: ImageEditAction) => void;
+  onRemoveBackground: () => void;
   selectedAsset: WorkspaceAsset | null;
   t: Copy;
 }) {
@@ -81,8 +86,10 @@ export function EditorRail({
         {selectedAsset?.kind === "image" && imageState ? (
           <ImageEditorPanel
             activeTab={visibleActiveTab ?? "transform"}
+            backgroundRemovalJob={backgroundRemovalJob}
             imageState={imageState}
             onApply={onApplyImageAction}
+            onRemoveBackground={onRemoveBackground}
             t={t}
           />
         ) : selectedAsset?.kind === "video" ? (

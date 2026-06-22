@@ -11,7 +11,12 @@ import { MobileTabs } from "../components/studio/MobileTabs";
 import { TopToolbar } from "../components/studio/TopToolbar";
 import { emptyWorkspaceTabs, populatedWorkspaceTabs } from "../config/workspace";
 import { detectInitialLanguage, messages, type Language } from "../i18n";
+import { useJobStore } from "../stores/job-store";
 import { getVisibleAssets, useMediaStore, type WorkspaceAsset } from "../stores/media-store";
+import {
+  getBackgroundRemovalErrorMessage,
+  runImageBackgroundRemoval,
+} from "../utils/background-removal";
 import { readAssetMetadata } from "../utils/media-metadata";
 import type { MobileTab } from "./types";
 
@@ -35,6 +40,11 @@ export default function App() {
   const applyImageAction = useMediaStore((state) => state.applyImageAction);
   const updateAssetMetadata = useMediaStore((state) => state.updateAssetMetadata);
   const removeSelected = useMediaStore((state) => state.removeSelected);
+  const jobs = useJobStore((state) => state.jobs);
+  const queueJob = useJobStore((state) => state.queueJob);
+  const updateJob = useJobStore((state) => state.updateJob);
+  const completeJob = useJobStore((state) => state.completeJob);
+  const failJob = useJobStore((state) => state.failJob);
 
   const visibleAssets = useMemo(() => getVisibleAssets(assets, filter), [assets, filter]);
   const selectedAsset = useMemo<WorkspaceAsset | null>(
@@ -44,6 +54,10 @@ export default function App() {
   const selectedImageState =
     selectedAsset?.kind === "image"
       ? getCurrentImageEditState(imageHistories[selectedAsset.id] ?? initialImageEditHistory())
+      : null;
+  const backgroundRemovalJob =
+    selectedAsset?.kind === "image"
+      ? (jobs[getBackgroundRemovalJobId(selectedAsset.id)] ?? null)
       : null;
   const canEditSelectedImage = selectedAsset?.kind === "image" && Boolean(selectedImageState);
   const workspaceTabs = assets.length ? populatedWorkspaceTabs : emptyWorkspaceTabs;
@@ -87,6 +101,37 @@ export default function App() {
     }
 
     applyImageAction(selectedAsset.id, action);
+  }
+
+  async function handleRemoveBackground() {
+    if (selectedAsset?.kind !== "image") {
+      return;
+    }
+
+    const asset = selectedAsset;
+    const jobId = getBackgroundRemovalJobId(asset.id);
+
+    if (isActiveJob(jobs[jobId])) {
+      return;
+    }
+
+    queueJob(jobId, "background-removal", t.backgroundRemovalRunning);
+
+    try {
+      const result = await runImageBackgroundRemoval({
+        onProgress: (update) => updateJob(jobId, update),
+        source: asset.file,
+      });
+
+      completeJob(jobId, t.backgroundRemovalComplete);
+      addFiles([result.file]);
+    } catch (error) {
+      failJob(jobId, {
+        code: "background-removal-failed",
+        message: getBackgroundRemovalErrorMessage(error, t.backgroundRemovalFailed),
+        recoverable: true,
+      });
+    }
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -161,9 +206,11 @@ export default function App() {
 
         {assets.length ? (
           <EditorRail
+            backgroundRemovalJob={backgroundRemovalJob}
             imageState={selectedImageState}
             isVisible={currentMobileTab === "edit" || currentMobileTab === "export"}
             onApplyImageAction={handleApplyImageAction}
+            onRemoveBackground={() => void handleRemoveBackground()}
             selectedAsset={selectedAsset}
             t={t}
           />
@@ -171,4 +218,12 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+function getBackgroundRemovalJobId(assetId: string) {
+  return `background-removal:${assetId}`;
+}
+
+function isActiveJob(job: ReturnType<typeof useJobStore.getState>["jobs"][string] | undefined) {
+  return job?.status === "queued" || job?.status === "loading" || job?.status === "processing";
 }

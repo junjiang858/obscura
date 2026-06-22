@@ -4,6 +4,7 @@ import type {
   ImageEditState,
   WatermarkPosition,
 } from "@local-media-studio/media-core";
+import type { WorkerJob } from "@local-media-studio/shared";
 import type { Copy } from "../../i18n";
 import { StudioIcon } from "../../icons/studio-icons";
 import { AdjustmentControl } from "./AdjustmentControl";
@@ -21,15 +22,24 @@ const watermarkPositionOptions: Array<{ label: keyof Copy; value: WatermarkPosit
 
 export function ImageEditorPanel({
   activeTab,
+  backgroundRemovalJob,
   imageState,
   onApply,
+  onRemoveBackground,
   t,
 }: {
   activeTab: string;
+  backgroundRemovalJob: WorkerJob | null;
   imageState: ImageEditState;
   onApply: (action: ImageEditAction) => void;
+  onRemoveBackground: () => void;
   t: Copy;
 }) {
+  const isRemovingBackground =
+    backgroundRemovalJob?.status === "queued" ||
+    backgroundRemovalJob?.status === "loading" ||
+    backgroundRemovalJob?.status === "processing";
+
   return (
     <section aria-label={t.imageEditControls} className="editor-panel-content">
       {activeTab === "transform" ? (
@@ -235,11 +245,47 @@ export function ImageEditorPanel({
             <StudioIcon name="backgroundReplace" size={18} />
             <h3>{t.backgroundTab}</h3>
           </div>
-          <ProgressiveToolRow
-            detail={t.backgroundRemoverDetail}
-            icon="backgroundReplace"
-            title={t.backgroundRemover}
-          />
+          <p className="export-helper">{t.backgroundRemoverDetail}</p>
+          <button
+            className="primary-button full-width"
+            disabled={isRemovingBackground}
+            onClick={onRemoveBackground}
+            type="button"
+          >
+            <StudioIcon name="backgroundReplace" size={20} />
+            <span>
+              {backgroundRemovalJob?.status === "failed"
+                ? t.backgroundRemovalRetry
+                : isRemovingBackground
+                  ? t.backgroundRemovalRunning
+                  : t.backgroundRemovalAction}
+            </span>
+          </button>
+          {backgroundRemovalJob ? (
+            <div className={`job-message ${backgroundRemovalJob.status}`}>
+              <StudioIcon
+                name={backgroundRemovalJob.status === "failed" ? "warning" : "checkCircle"}
+                size={17}
+              />
+              <span>
+                {backgroundRemovalJob.error?.message ??
+                  backgroundRemovalJob.message ??
+                  t.backgroundRemovalRunning}
+              </span>
+            </div>
+          ) : null}
+          {isRemovingBackground && typeof backgroundRemovalJob?.progress === "number" ? (
+            <div
+              aria-label={t.backgroundRemovalRunning}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={Math.round(backgroundRemovalJob.progress)}
+              className="job-progress"
+              role="progressbar"
+            >
+              <span style={{ width: `${backgroundRemovalJob.progress}%` }} />
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>
