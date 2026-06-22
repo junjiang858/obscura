@@ -58,6 +58,8 @@ Do not introduce a new framework, UI kit, state library, media pipeline, package
 - Do not silently persist raw user media beyond documented local draft behavior.
 - Keep detailed project documents under `docs/`; keep this file short as the root index.
 - Update the relevant source-of-truth document before code when design, API, database, permission, deployment, tool, persistence, or operational behavior changes.
+- For frontend work, follow `docs/architecture/FRONTEND_PLAN.md` for source tree, file responsibilities, component split rules, state/config/i18n/utils ownership, and import boundaries before editing UI code.
+- For frontend work, also follow the Product MVP UI Quality Gate in `docs/architecture/FRONTEND_PLAN.md`: Design Read, design system tokens, state and interaction contract, responsive/accessibility expectations, anti-slop guardrails, and browser UI quality verification.
 - Keep changes small, reviewable, and aligned with the documented tech stack.
 - Prefer existing project patterns before adding abstractions.
 - Run heavy media processing and model inference behind explicit Worker-facing APIs.
@@ -91,6 +93,10 @@ Required before implementation:
 - `docs/ops/TOOL_POLICY.md`
 - `docs/ops/DEPLOYMENT.md`
 
+When frontend UI is in scope, `docs/architecture/FRONTEND_PLAN.md` must define the frontend engineering contract, not only visual style or page lists. It must cover source tree, route/page responsibilities, shared UI and business component locations, state ownership, config/messages/icons/assets/utilities ownership, and import boundaries.
+
+It must also define the Product MVP UI Quality Gate before UI code starts. The plan must include Design Read, Design Dials, design system tokens, UI component strategy, state and interaction contract, responsive and accessibility expectations, anti-slop guardrails, and browser UI quality verification. Do not use the accelerated path to skip this gate; after creating or updating the named missing batch, rerun the implementation readiness audit and block frontend code if the UI quality gate is incomplete.
+
 If multiple readiness documents are missing, do not give only a single next-document suggestion. Offer plain-text options and do not depend on UI buttons:
 
 - `A. Steady path`: create or update the single most important next document, then ask for review.
@@ -107,6 +113,8 @@ A task is complete only when evidence appropriate to the work is provided:
 - Media processing: focused tests or browser evidence for success, progress, failure, and cancellation paths where feasible.
 - Security/privacy: evidence that v1 media remains local and no forbidden upload or persistence path was introduced.
 - Source-of-truth changes: updated docs must be listed before code evidence.
+- Frontend browser UI quality evidence must cover desktop and mobile when UI is changed.
+- Frontend files must follow the documented source tree and component boundaries when UI is changed.
 - Git: inspect status and diff before committing once Git is initialized.
 
 ## Commit Discipline
@@ -125,3 +133,4 @@ A task is complete only when evidence appropriate to the work is provided:
 - New major dependencies without documented approval.
 - Cloud media upload, analytics over user media, accounts, remote persistence, or backend processing in v1 without source-of-truth updates and user approval.
 - Multi-track timeline, Photoshop-like layer editor, CapCut-style template system, or AI video generation in v1 without changing the project scope first.
+- Packing unrelated frontend UI, config, messages, state, mock data, icons, and utilities into a single app, page, or route file.

@@ -17,6 +17,42 @@
 - Accessibility expectations: Keyboard-accessible upload, media switching, tool buttons, tabs, dialogs, sliders, and export actions; visible focus states; accessible names for icon buttons; no text trapped inside too-small controls.
 - Language expectations: The web app supports English and Simplified Chinese in v1. It should choose the initial language from `navigator.language` when possible and provide an in-app language switcher that does not require reload.
 
+## Design Read
+
+- Surface type: Dense local-first media editing workspace, not a marketing landing page.
+- Audience: Personal creators editing private images and short videos in the browser.
+- Product tone: Professional Studio: calm, precise, dark, canvas-first, and task-focused.
+- Reference signals: Google Stitch project `1201636135287513933` / MagicMedia Editor, the existing three-region studio shell, Material Symbols tool icons, and dark media workstation conventions.
+- Existing brand assets: MagicMedia wordmark in the top toolbar, Magic Blue/Cyan accent family, Material Symbols SVG React icon adapter, and the current localized English/Chinese message dictionaries.
+- Quiet constraints: User media stays local; import and export each have one primary visible entry point; desktop stays dense but readable; mobile uses stacked workflow tabs; UI copy must localize; browser controls must not hide long-running media job states.
+- One-sentence direction: Build a real local media workstation whose first frame makes upload, preview, editing, and export immediately inspectable without adding marketing chrome.
+
+## Design Dials
+
+| Dial             | Value | Rationale                                                                                             |
+| ---------------- | ----- | ----------------------------------------------------------------------------------------------------- |
+| Design variance  | 5     | Stay close to the Stitch visual baseline while allowing project-specific tool ergonomics.             |
+| Motion intensity | 3     | Use restrained feedback for active states and processing without distracting from the preview canvas. |
+| Visual density   | 7     | Keep the library, preview, editor, and export controls visible on desktop for repeated editing work.  |
+
+Rules:
+
+- Do not apply landing-page taste rules blindly to this product UI.
+- Prioritize scannable density, efficient controls, clear state, restrained motion, and mature design-system patterns.
+- Document any future marketing or brand surface separately from the editing workspace before implementation.
+
+## Product MVP UI Quality Gate
+
+- MVP UI quality standard: The first MVP may be narrow, but the visible workspace must feel like a coherent media tool, with real controls, stable layout, complete states, and localized copy.
+- First user loop: Import local media, select an asset, inspect the preview, apply an edit, understand processing state, and export/download without uploading private media.
+- Design system foundation: Use the documented dark studio theme, one Material Symbols icon family through the local adapter, shadcn/Radix primitives where available, 8px-or-less working radii, and stable panel/control dimensions.
+- Layout contract: Desktop uses fixed library, fluid preview, and fixed inspector/export rail; empty state hides the inspector rail; mobile uses Library, Preview, Edit, and Export tabs instead of squeezing desktop panels.
+- Interaction completeness: Upload, selection, previous/next, undo/redo, compare, zoom, edit controls, export, failure, cancellation where feasible, disabled states, focus states, and keyboard/touch paths must be represented.
+- Responsive requirement: Desktop and mobile must both be checked for non-overlap, readable labels, visible export action, and inspectable media preview.
+- Accessibility requirement: Icon-only controls require accessible names and tooltips where helpful; focus rings, labels, contrast, touch targets, and keyboard navigation must remain usable.
+- Anti-slop constraints: No generic AI gradient/glow, fake preview rectangles, card-in-card clutter, duplicate CTAs, placeholder-as-label forms, invisible focus states, clipped text, or decorative motion that competes with the editing task.
+- Browser UI quality verification: Browser evidence must cover upload/empty state, populated desktop workspace, mobile tabs, selected preview, editor controls, export state, and at least one failure or disabled path.
+
 ## Page Map
 
 | Route or screen     | Goal                                                                            | Primary action                                                                              | Data needed                                                                                | States                                                                                     |
@@ -77,33 +113,64 @@
 
 ## Component Map
 
-| Component                | Purpose                                                                                               | Reuse scope               |
-| ------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------- |
-| `AppShell`               | Owns full-height workspace layout and responsive panel regions                                        | App-wide                  |
-| `TopToolbar`             | Brand, local-only advantage tag, undo/redo where applicable, asset navigation, and language switching | Workspace                 |
-| `UploadDropzone`         | Drag/drop and file-picker entry                                                                       | Workspace and empty state |
-| `MediaLibraryPanel`      | Shows media list, filters, metadata, selected item, previous/next navigation                          | Workspace                 |
-| `MediaAssetCard`         | Compact thumbnail, type, name, size, dimensions/duration, error badge                                 | Media library             |
-| `PreviewStage`           | Hosts selected image/video preview and edit overlay                                                   | Workspace                 |
-| `ImagePreviewCanvas`     | Image display, crop preview, comparison, annotation/watermark rendering                               | Image workflow            |
-| `PreviewViewportToolbar` | Zoom out/in, fullscreen/theater toggle, and before/after compare mode                                 | Workspace                 |
-| `VideoPreviewPlayer`     | Video playback, current time, subtitle preview, trim markers                                          | Video workflow            |
-| `EditorPanel`            | Switches between image/video tool groups based on selected asset type                                 | Workspace                 |
-| `ImageToolTabs`          | Crop, transform, adjust, annotate, watermark, background removal                                      | Image workflow            |
-| `VideoToolTabs`          | Trim, speed, subtitles, export options                                                                | Video workflow            |
-| `CropPresetControl`      | Social crop presets and custom ratio controls                                                         | Image workflow            |
-| `AdjustmentControls`     | Brightness, contrast, saturation sliders                                                              | Image workflow            |
-| `AnnotationToolbar`      | Text, brush, rectangle, arrow, selection controls                                                     | Image workflow            |
-| `WatermarkControls`      | Text/image watermark placement and opacity controls                                                   | Image workflow            |
-| `BackgroundRemovalPanel` | Starts local background removal and shows model/job progress                                          | Image workflow            |
-| `TrimRangeControl`       | Start/end inputs and visual trim range                                                                | Video workflow            |
-| `SpeedControl`           | Speed preset and custom speed input                                                                   | Video workflow            |
-| `SubtitleCueList`        | Manual subtitle cue creation, validation, editing, deletion                                           | Video workflow            |
-| `ExportPanel`            | Output format, quality, resolution/size where feasible, and the single export/save action             | Workspace                 |
-| `ProcessingJobToast`     | Progress, cancel, retry, and failure reason for long-running jobs                                     | App-wide                  |
-| `EmptyState`             | First-run upload prompt and filtered-empty guidance                                                   | Workspace                 |
-| `ErrorState`             | Unsupported format, metadata failure, processing failure, export failure                              | App-wide                  |
-| `KeyboardShortcutLayer`  | Previous/next, play/pause, undo/redo, reset, export shortcuts                                         | Workspace                 |
+| Component                    | Purpose                                                                                               | Owner layer or folder                                 | Reuse scope               | State owned                                                                  |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------- |
+| `AppShell` / `App`           | Owns full-height workspace layout and responsive panel regions                                        | `apps/web/src/app`                                    | App-wide                  | Local UI composition state only                                              |
+| `TopToolbar`                 | Brand, local-only advantage tag, undo/redo where applicable, asset navigation, and language switching | `apps/web/src/components/studio`                      | Workspace                 | Receives selected asset and language state from app/store                    |
+| `UploadDropzone`             | Drag/drop and file-picker entry                                                                       | `apps/web/src/components/preview`                     | Workspace and empty state | File input is owned by app composition                                       |
+| `MediaLibraryPanel`          | Shows media list, filters, metadata, selected item, previous/next navigation                          | `apps/web/src/components/media-library`               | Workspace                 | Reads media store state through props/selectors                              |
+| `MediaAssetCard`             | Compact thumbnail, type, name, size, dimensions/duration, error badge                                 | `apps/web/src/components/media-library`               | Media library             | Stateless display plus selected/disabled props                               |
+| `PreviewStage`               | Hosts selected image/video preview and edit overlay                                                   | `apps/web/src/components/preview`                     | Workspace                 | Owns preview-only controls through props from app                            |
+| `ImagePreviewCanvas`         | Image display, crop preview, comparison, annotation/watermark rendering                               | `apps/web/src/components/preview`                     | Image workflow            | Receives edit state; does not own history                                    |
+| `PreviewViewportToolbar`     | Zoom out/in, fullscreen/theater toggle, and before/after compare mode                                 | `apps/web/src/components/preview`                     | Workspace                 | Preview zoom/compare/fullscreen state is owned by app composition            |
+| `VideoPreviewPlayer`         | Video playback, current time, subtitle preview, trim markers                                          | `apps/web/src/components/preview`                     | Video workflow            | Future local playback state only                                             |
+| `EditorPanel` / `EditorRail` | Switches between image/video tool groups based on selected asset type                                 | `apps/web/src/components/editor`                      | Workspace                 | Receives selected asset and edit state                                       |
+| `ImageToolTabs`              | Crop, transform, adjust, annotate, watermark, background removal                                      | `apps/web/src/components/editor`                      | Image workflow            | Tab/expanded-section state may be local; image history stays in store/core   |
+| `VideoToolTabs`              | Trim, speed, subtitles, export options                                                                | `apps/web/src/components/editor`                      | Video workflow            | Future video edit draft state should live in store/core                      |
+| `CropPresetControl`          | Social crop presets and custom ratio controls                                                         | `apps/web/src/components/editor`                      | Image workflow            | Stateless action dispatch                                                    |
+| `AdjustmentControls`         | Brightness, contrast, saturation sliders                                                              | `apps/web/src/components/editor`                      | Image workflow            | Stateless action dispatch                                                    |
+| `AnnotationToolbar`          | Text, brush, rectangle, arrow, selection controls                                                     | `apps/web/src/components/editor`                      | Image workflow            | Future annotation selection may be local until persisted to image edit state |
+| `WatermarkControls`          | Text/image watermark placement and opacity controls                                                   | `apps/web/src/components/editor`                      | Image workflow            | Future draft form state local; committed watermark state in store/core       |
+| `BackgroundRemovalPanel`     | Starts local background removal and shows model/job progress                                          | `apps/web/src/components/editor`                      | Image workflow            | Future job state in store/worker boundary                                    |
+| `TrimRangeControl`           | Start/end inputs and visual trim range                                                                | `apps/web/src/components/editor`                      | Video workflow            | Future validated trim state in store/core                                    |
+| `SpeedControl`               | Speed preset and custom speed input                                                                   | `apps/web/src/components/editor`                      | Video workflow            | Future validated speed state in store/core                                   |
+| `SubtitleCueList`            | Manual subtitle cue creation, validation, editing, deletion                                           | `apps/web/src/components/editor`                      | Video workflow            | Future cue draft state in store/core with local row editing                  |
+| `ExportPanel`                | Output format, quality, resolution/size where feasible, and the single export/save action             | `apps/web/src/components/export`                      | Workspace                 | Future export settings/job state in store/worker boundary                    |
+| `ProcessingJobToast`         | Progress, cancel, retry, and failure reason for long-running jobs                                     | `apps/web/src/components/export` or `studio`          | App-wide                  | Future job state in store/worker boundary                                    |
+| `EmptyState`                 | First-run upload prompt and filtered-empty guidance                                                   | `apps/web/src/components/preview` and `media-library` | Workspace                 | Stateless display and action callbacks                                       |
+| `ErrorState`                 | Unsupported format, metadata failure, processing failure, export failure                              | Relevant feature component folder                     | App-wide                  | Error source stays with asset/job state                                      |
+| `KeyboardShortcutLayer`      | Previous/next, play/pause, undo/redo, reset, export shortcuts                                         | `apps/web/src/components/studio` or `app`             | Workspace                 | Dispatches to app/store; no durable state                                    |
+
+## Frontend Source Tree
+
+Approved current structure:
+
+```text
+apps/web/src/
+  app/
+  components/
+    editor/
+    export/
+    media-library/
+    preview/
+    studio/
+  config/
+  i18n/
+    messages/
+  icons/
+  stores/
+  utils/
+  App.tsx
+  main.tsx
+  styles.css
+```
+
+Rules:
+
+- `apps/web/src/App.tsx` is a compatibility export and should stay thin.
+- `apps/web/src/app/App.tsx` composes the workspace and may own cross-region UI state such as language, mobile tab, compare mode, fullscreen, zoom, file input, and top-level event handlers.
+- New top-level frontend folders require an update to this document before implementation.
+- New feature folders under `components/` must map to a user-facing region or workflow, not to a vague technical bucket.
 
 ## Frontend File Organization
 
@@ -119,6 +186,51 @@
 - `apps/web/src/stores`: Zustand stores and state selectors.
 - `apps/web/src/utils`: Browser, image export, media asset, formatting, and DOM utility helpers that are not React components.
 - Keep files focused by ownership. A region component may compose smaller local components, but it should not define global copy, media store state, or browser export logic inline.
+
+## File Boundary Contract
+
+| Concern                         | Approved location                                                      | Notes                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| App boot entry                  | `apps/web/src/main.tsx`                                                | Mounts React and global providers only.                                                            |
+| Compatibility app export        | `apps/web/src/App.tsx`                                                 | Re-export only; do not add UI logic here.                                                          |
+| App shell and route composition | `apps/web/src/app`                                                     | Orchestrates regions, cross-region state, and route-level event handlers.                          |
+| Shared studio primitives        | `apps/web/src/components/studio`                                       | Toolbar, mobile tabs, panel headers, shared studio buttons, and workspace chrome.                  |
+| Business/domain components      | `apps/web/src/components/media-library`, `preview`, `editor`, `export` | Components stay near the workflow they serve.                                                      |
+| Feature or workflow components  | Same workflow-specific component folders                               | Split by media library, preview, editor, export, or future approved feature.                       |
+| Data/API clients or mocks       | `apps/web/src/utils` or future approved `clients` folder               | Browser adapters and export helpers live in utils until complexity warrants a documented folder.   |
+| Local or global stores          | `apps/web/src/stores`                                                  | Zustand stores, selectors, and durable app state.                                                  |
+| Config, constants, tokens       | `apps/web/src/config`                                                  | Supported filters, tab order, icon sizes, layout widths, crop presets, and export option metadata. |
+| i18n messages                   | `apps/web/src/i18n`                                                    | Language types, detection, dictionaries, and localized label helpers.                              |
+| Icons                           | `apps/web/src/icons`                                                   | Local adapter for Material Symbols; components do not import directly from the icon package.       |
+| Assets/media                    | Future approved `apps/web/src/assets`                                  | Add only when local static assets are needed and documented here.                                  |
+| Utilities and browser adapters  | `apps/web/src/utils`                                                   | Object URL, metadata, export, formatting, and DOM helpers.                                         |
+| Global styles                   | `apps/web/src/styles.css`                                              | Theme tokens, layout classes, and shared control styling.                                          |
+
+Rules:
+
+- `App.tsx` and route/app composition files compose screens; they must not hold unrelated UI, config, messages, state stores, icons, mock data, and utilities.
+- A catch-all `utils.ts`, `config.ts`, or flat `components/` dump is not allowed once responsibilities are distinct.
+- Any new top-level frontend folder must be added here before implementation.
+
+## Component Split Rules
+
+- Split by user-facing concept when a file begins mixing library, preview, editor, export, or processing responsibilities.
+- Split by interaction state when loading, empty, error, success, disabled, selected, editing, processing, or failure markup becomes large enough to obscure the main flow.
+- Split by data or domain boundary when image edit history, video edit settings, export jobs, media metadata, or localization needs separate validation or ownership.
+- Split repeated patterns after they appear in two regions with the same behavior, not merely the same visual shape.
+- Keep local-only pieces inline when they are short, single-use, and have no independent state or accessibility contract.
+- Extract custom hooks when DOM/browser APIs, object URL lifecycle, keyboard shortcuts, worker messages, or measurement logic would otherwise dominate a component.
+- Promote state to a store when multiple regions need it, when it must survive component unmounts, or when it represents media/edit/job state rather than temporary UI affordance.
+
+## Import Boundaries
+
+- Route/page/app composition may import workflow components, config, i18n, stores, icons, and utilities.
+- Shared studio UI may import config tokens and icon adapters, but should not import media-core editing logic or workflow-specific stores directly.
+- Feature/domain modules may import shared studio components, config, i18n types/messages, stores/selectors, utilities, and package APIs from `@local-media-studio/*`.
+- Stores may import pure logic/types from workspace packages and utilities, but should not import React components.
+- i18n, config, and icons should not import feature components or stores.
+- Forbidden imports: UI components importing from sibling feature folders just to reach hidden helpers; direct icon-package imports outside `icons`; workflow logic hidden in `styles.css`; store definitions inside route or component files.
+- Public entry files required for now: `apps/web/src/App.tsx`, `apps/web/src/app/App.tsx`, `apps/web/src/main.tsx`, and package entry points under `packages/*` when shared logic changes.
 
 ## Frontend Architecture
 
@@ -264,6 +376,42 @@
 | Video editor  | No video selected                   | Metadata loading, thumbnail generating, exporting | Invalid range, unsupported codec, export failed | Preview plays and export enabled   |
 | Export        | Disabled until valid asset/settings | Progress with cancel when feasible                | Failure reason plus retry/reset                 | Download action/result visible     |
 
+## State And Interaction Contract
+
+| State or interaction | Pattern                                                                                                          | Components affected                        | Notes                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| Loading              | Layout-matched placeholders, metadata loading rows, or progress blocks instead of generic full-screen spinners   | Media library, preview, editor, export     | WASM/model loads must show readable progress where feasible.                    |
+| Empty                | A direct next action inside the real workspace                                                                   | Preview, media library                     | First-run empty state uses one Import Media action and format capability tags.  |
+| Error                | Contextual error copy plus retry/reset/remove where feasible                                                     | Asset cards, preview, editor, export       | Unsupported files are asset-level and preview-visible when selected.            |
+| Success              | The edited preview/export-ready state is visible without celebratory overlay clutter                             | Preview, editor, export                    | Downloads should start directly when browser behavior allows.                   |
+| Disabled             | Disabled controls remain visible with understandable labels or helper text                                       | Editor controls, export action, navigation | Export disabled state must explain missing asset/settings when useful.          |
+| Validating or saving | Inline validation for trim, subtitles, numeric values, and export settings                                       | Editor, export                             | Use Zod or core validation at boundaries.                                       |
+| Selected or editing  | Blue accent selection and tactile active states without heavy shadows                                            | Media library, preview toolbar, tool tabs  | Selection state must not depend on color alone.                                 |
+| Destructive action   | Remove/reset actions require clear affordance and should avoid accidental activation                             | Media library, editor                      | Confirm only where data loss is non-obvious or irreversible within the session. |
+| Focus and keyboard   | Visible focus rings, accessible names, and keyboard paths for upload, navigation, tool buttons, tabs, and export | All interactive regions                    | Icon-only controls need names and tooltips where helpful.                       |
+| Hover, active, touch | Hover/active states are restrained; mobile controls meet touch target expectations                               | Studio chrome, tool controls, asset cards  | Pointer-drag preview handlers must not swallow toolbar clicks.                  |
+
+Rules:
+
+- Forms use visible labels, optional helper text, error text below fields, and accessible focus rings.
+- Loading states use skeletons, stable rows, or layout-matched placeholders rather than generic spinners when possible.
+- Empty states identify the next useful action.
+- Error states are inline or contextual; toasts are only for transient feedback.
+
+## Anti-Slop Preflight
+
+- [ ] No generic AI-purple gradient default, random glow, or decorative effect replacing information architecture.
+- [ ] No fake product previews made from decorative div rectangles.
+- [ ] No gratuitous glassmorphism, bento, marquee, or motion in this dense editing UI.
+- [ ] No ungrounded metrics, fake-precise numbers, or generic placeholder names.
+- [ ] No placeholder-as-label forms.
+- [ ] No low-contrast ghost buttons or invisible focus states.
+- [ ] No text overflow, clipped labels, button wrapping on desktop, or incoherent overlap.
+- [ ] No card-in-card layout unless the nested frame represents a real tool, modal, or repeated item.
+- [ ] UI library components are customized through tokens or documented component variants, not scattered one-off styles.
+- [ ] Upload and export each have one visible primary entry point in the relevant state.
+- [ ] Media preview remains inspectable on desktop and mobile.
+
 ## Implementation Order
 
 1. First MVP page shell: `/` guided studio layout, upload dropzone, media tray, preview, current task panel, and language switcher.
@@ -278,6 +426,7 @@
 ## Change Rule
 
 - Update this document before implementing changes to routes, components, UI states, data dependencies, permissions, persistence, or interaction behavior.
+- Update the Frontend Source Tree, File Boundary Contract, Component Split Rules, and Import Boundaries before moving frontend code across directories or adding new frontend layers.
 - If implementation reveals a new backend/API/database/cloud requirement, pause frontend implementation and update the relevant source-of-truth document first.
 - If a new UI library, canvas library, media library, or state pattern is needed, update `docs/architecture/TECH_STACK.md` first.
 
@@ -285,7 +434,17 @@
 
 - [ ] Type/build check once scripts exist.
 - [ ] Browser verification for upload, select, preview, edit, and export flow.
-- [ ] Responsive layout check for desktop, tablet, and mobile.
+- [ ] Desktop responsive layout check.
+- [ ] Mobile responsive layout check.
+- [ ] Tablet responsive layout check when relevant to the changed surface.
 - [ ] Keyboard navigation check for upload focus, media switching, tool buttons, dialogs, and export.
 - [ ] Canvas/video nonblank preview check.
 - [ ] Privacy check that user media is not uploaded in v1.
+- [ ] Source tree matches this document.
+- [ ] Entry and route files are orchestration-focused.
+- [ ] UI, config, messages, state, icons, assets, and utilities have separate approved locations.
+- [ ] Components are split by documented user/domain/interaction boundaries.
+- [ ] Design Read, Design Dials, and Product MVP UI Quality Gate are followed.
+- [ ] Required loading, empty, error, success, disabled, and saving states render.
+- [ ] Text fits controls, cards, table cells, badges, and empty/error states.
+- [ ] Contrast, focus rings, keyboard navigation, and touch targets are usable.

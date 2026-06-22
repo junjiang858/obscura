@@ -13,7 +13,7 @@
 2. Read `AGENTS.md` and the relevant source-of-truth documents under `docs/`.
 3. State the current goal, completion signal, and next action.
 4. If source-of-truth documents are missing, stop before implementation and offer plain-text options for steady or accelerated documentation paths.
-5. If the task changes design, contracts, data shape, permissions, tools, deployment, persistence, or operations, update the affected source-of-truth document first.
+5. If the task changes design, frontend source tree, component boundaries, contracts, data shape, permissions, tools, deployment, persistence, or operations, update the affected source-of-truth document first.
 6. Produce a small implementation plan only after the relevant documents exist and align.
 7. Implement the smallest useful change against the approved documents.
 8. Run the appropriate checks: typecheck, lint, tests, build, browser verification, privacy/security checks.
@@ -52,6 +52,7 @@
 | Deployment           | Build output, deployment URL or preview evidence, header/env verification, rollback path                               |
 
 When implementation changes design or contracts, docs evidence must come before code evidence.
+When frontend implementation changes source tree, file responsibilities, component boundaries, state/config/i18n/utils ownership, or import boundaries, `docs/architecture/FRONTEND_PLAN.md` evidence must come before code evidence.
 
 ## Planning Rules
 
@@ -64,6 +65,7 @@ When implementation changes design or contracts, docs evidence must come before 
 ## Implementation Rules
 
 - Follow the tech stack in `docs/architecture/TECH_STACK.md`.
+- Follow the frontend source tree, file boundary contract, component split rules, import boundaries, and Product MVP UI Quality Gate in `docs/architecture/FRONTEND_PLAN.md`.
 - Keep heavy ffmpeg/background-removal work behind Worker-facing APIs from `docs/architecture/BACKEND_SPEC.md`.
 - Use Zod for boundary validation where documented.
 - Keep raw user media local and session-scoped according to `docs/architecture/DATABASE_DESIGN.md`.
