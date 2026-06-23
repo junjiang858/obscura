@@ -87,6 +87,8 @@ export const zh = {
   filterFilm: "胶片",
   filterFade: "褪色",
   resetBeautify: "重置美化",
+  resetTransform: "重置变换",
+  resetLayers: "重置图层",
   watermarkText: "水印文字",
   watermarkPosition: "水印位置",
   watermarkTopLeft: "左上",

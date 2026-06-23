@@ -175,6 +175,74 @@ describe("media core helpers", () => {
     expect(state.filterStrength).toBe(100);
   });
 
+  it("resets transform controls without clearing beautify or layer edits", () => {
+    const history = applyImageEditAction(
+      applyImageEditAction(
+        applyImageEditAction(
+          applyImageEditAction(
+            applyImageEditAction(initialImageEditHistory(), { type: "rotate-clockwise" }),
+            { type: "toggle-flip-horizontal" },
+          ),
+          {
+            annotation: {
+              color: "#f8fbff",
+              id: "annotation-1",
+              text: "Keep me",
+              type: "text",
+              x: 0.2,
+              y: 0.2,
+            },
+            type: "add-annotation",
+          },
+        ),
+        { adjustment: "brightness", type: "set-adjustment", value: 16 },
+      ),
+      { type: "reset-transform" },
+    );
+    const state = getCurrentImageEditState(history);
+
+    expect(state.rotation).toBe(0);
+    expect(state.flipHorizontal).toBe(false);
+    expect(state.cropAspect).toBe("free");
+    expect(state.cropRect).toBeNull();
+    expect(state.adjustments.brightness).toBe(16);
+    expect(state.annotations).toHaveLength(1);
+  });
+
+  it("resets image layers without clearing transform or beautify edits", () => {
+    const history = applyImageEditAction(
+      applyImageEditAction(
+        applyImageEditAction(
+          applyImageEditAction(
+            applyImageEditAction(initialImageEditHistory(), { type: "rotate-clockwise" }),
+            { text: "Draft", type: "set-watermark" },
+          ),
+          {
+            annotation: {
+              color: "#f8fbff",
+              id: "annotation-1",
+              text: "Remove me",
+              type: "text",
+              x: 0.2,
+              y: 0.2,
+            },
+            type: "add-annotation",
+          },
+        ),
+        { adjustment: "contrast", type: "set-adjustment", value: 22 },
+      ),
+      { type: "reset-layers" },
+    );
+    const state = getCurrentImageEditState(history);
+
+    expect(state.rotation).toBe(90);
+    expect(state.adjustments.contrast).toBe(22);
+    expect(state.annotations).toEqual([]);
+    expect(state.watermarkText).toBe("");
+    expect(state.watermarkPosition).toBe("bottom-right");
+    expect(state.watermarkLayer).toMatchObject({ x: 0.68, y: 0.82 });
+  });
+
   it("builds centered crop and resize plans for image export", () => {
     const history = applyImageEditAction(
       applyImageEditAction(initialImageEditHistory(), {

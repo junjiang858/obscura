@@ -28,7 +28,9 @@ export function ImageLayerCanvas({
   size: LayerCanvasSize;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isTransforming, setIsTransforming] = useState(false);
   const transformerRef = useRef<Konva.Transformer>(null);
+  const transformLockRef = useRef(false);
   const nodeRefs = useRef(new Map<string, Konva.Node>());
   const selectedExists =
     selectedId === null ||
@@ -74,6 +76,11 @@ export function ImageLayerCanvas({
     nodeRefs.current.delete(id);
   }
 
+  function setTransformLock(nextIsTransforming: boolean) {
+    transformLockRef.current = nextIsTransforming;
+    setIsTransforming(nextIsTransforming);
+  }
+
   function selectLayer(event: KonvaEventObject<MouseEvent | TouchEvent>, id: string) {
     if (!interactive) {
       return;
@@ -81,6 +88,20 @@ export function ImageLayerCanvas({
 
     stopKonvaEvent(event);
     setSelectedId(id);
+  }
+
+  function handleTransformerStart(event: KonvaEventObject<Event>) {
+    event.cancelBubble = true;
+    const selectedNode = activeSelectedId ? nodeRefs.current.get(activeSelectedId) : null;
+    selectedNode?.draggable(false);
+    setTransformLock(true);
+  }
+
+  function handleTransformerEnd(event: KonvaEventObject<Event>) {
+    event.cancelBubble = true;
+    const selectedNode = activeSelectedId ? nodeRefs.current.get(activeSelectedId) : null;
+    selectedNode?.draggable(interactive);
+    setTransformLock(false);
   }
 
   function updateWatermarkFromNode(node: Konva.Node) {
@@ -228,12 +249,18 @@ export function ImageLayerCanvas({
           {cropRect ? (
             <Rect
               dash={[10, 8]}
-              draggable={interactive}
+              draggable={interactive && !isTransforming}
               fill="rgba(94, 225, 255, 0.08)"
               height={cropRect.height * size.height}
               onClick={(event) => selectLayer(event, cropLayerId)}
-              onDragEnd={(event) => updateCropRectFromNode(event.target as Konva.Rect)}
+              onDragEnd={(event) => {
+                if (!transformLockRef.current) {
+                  updateCropRectFromNode(event.target as Konva.Rect);
+                }
+              }}
+              onMouseDown={(event) => selectLayer(event, cropLayerId)}
               onTap={(event) => selectLayer(event, cropLayerId)}
+              onTouchStart={(event) => selectLayer(event, cropLayerId)}
               onTransformEnd={(event) => updateCropRectFromNode(event.target as Konva.Rect)}
               ref={(node) => setNodeRef(cropLayerId, node)}
               stroke="#5ee1ff"
@@ -248,6 +275,7 @@ export function ImageLayerCanvas({
             <AnnotationLayerItem
               annotation={annotation}
               interactive={interactive}
+              isTransforming={isTransforming}
               key={annotation.id}
               onMoveAnnotation={moveAnnotation}
               onMoveBrush={moveBrush}
@@ -260,15 +288,21 @@ export function ImageLayerCanvas({
 
           {watermarkText && watermarkLayer.visible ? (
             <Text
-              draggable={interactive}
+              draggable={interactive && !isTransforming}
               fill={watermarkLayer.color}
               fontFamily="system-ui, sans-serif"
               fontSize={Math.max(12, watermarkLayer.fontSize * size.width)}
               fontStyle="bold"
               opacity={watermarkLayer.opacity}
               onClick={(event) => selectLayer(event, "watermark")}
-              onDragEnd={(event) => updateWatermarkFromNode(event.target)}
+              onDragEnd={(event) => {
+                if (!transformLockRef.current) {
+                  updateWatermarkFromNode(event.target);
+                }
+              }}
+              onMouseDown={(event) => selectLayer(event, "watermark")}
               onTap={(event) => selectLayer(event, "watermark")}
+              onTouchStart={(event) => selectLayer(event, "watermark")}
               onTransformEnd={(event) => transformWatermark(event.target as Konva.Text)}
               ref={(node) => setNodeRef("watermark", node)}
               rotation={watermarkLayer.rotation}
@@ -283,9 +317,12 @@ export function ImageLayerCanvas({
           {interactive ? (
             <Transformer
               anchorFill="#f8fbff"
-              anchorSize={9}
+              anchorCornerRadius={5}
+              anchorSize={11}
               anchorStroke="#111827"
+              anchorStrokeWidth={2}
               borderStroke={selectedKind === "crop" ? "#5ee1ff" : "#f8fbff"}
+              borderStrokeWidth={2}
               enabledAnchors={
                 canResize
                   ? [
@@ -301,7 +338,12 @@ export function ImageLayerCanvas({
                   : []
               }
               ref={transformerRef}
+              flipEnabled={false}
+              onTransformEnd={handleTransformerEnd}
+              onTransformStart={handleTransformerStart}
+              padding={selectedKind === "crop" ? 0 : 4}
               rotateEnabled={selectedKind === "watermark"}
+              shouldOverdrawWholeArea={false}
               {...(selectedKind === "crop" ? { borderDash: [8, 6] } : {})}
             />
           ) : null}
@@ -314,6 +356,7 @@ export function ImageLayerCanvas({
 function AnnotationLayerItem({
   annotation,
   interactive,
+  isTransforming,
   onMoveAnnotation,
   onMoveBrush,
   onSelect,
@@ -323,6 +366,7 @@ function AnnotationLayerItem({
 }: {
   annotation: ImageAnnotation;
   interactive: boolean;
+  isTransforming: boolean;
   onMoveAnnotation: (annotation: ImageAnnotation, nextX: number, nextY: number) => void;
   onMoveBrush: (annotation: ImageAnnotation, node: Konva.Line) => void;
   onSelect: (event: KonvaEventObject<MouseEvent | TouchEvent>, id: string) => void;
@@ -335,12 +379,13 @@ function AnnotationLayerItem({
   if (annotation.type === "text") {
     return (
       <Text
-        draggable={interactive}
+        draggable={interactive && !isTransforming}
         fill={color}
         fontFamily="system-ui, sans-serif"
         fontSize={Math.max(13, size.width * 0.04)}
         fontStyle="bold"
         onClick={(event) => onSelect(event, annotation.id)}
+        onMouseDown={(event) => onSelect(event, annotation.id)}
         onDragEnd={(event) =>
           onMoveAnnotation(
             annotation,
@@ -349,6 +394,7 @@ function AnnotationLayerItem({
           )
         }
         onTap={(event) => onSelect(event, annotation.id)}
+        onTouchStart={(event) => onSelect(event, annotation.id)}
         ref={(node) => setNodeRef(annotation.id, node)}
         shadowBlur={10}
         shadowColor="rgba(0, 0, 0, 0.42)"
@@ -362,10 +408,11 @@ function AnnotationLayerItem({
   if (annotation.type === "rectangle") {
     return (
       <Rect
-        draggable={interactive}
+        draggable={interactive && !isTransforming}
         fill="rgba(248, 251, 255, 0.04)"
         height={annotation.height * size.height}
         onClick={(event) => onSelect(event, annotation.id)}
+        onMouseDown={(event) => onSelect(event, annotation.id)}
         onDragEnd={(event) =>
           onMoveAnnotation(
             annotation,
@@ -374,6 +421,7 @@ function AnnotationLayerItem({
           )
         }
         onTap={(event) => onSelect(event, annotation.id)}
+        onTouchStart={(event) => onSelect(event, annotation.id)}
         onTransformEnd={(event) => onTransformRectangle(annotation, event.target as Konva.Rect)}
         ref={(node) => setNodeRef(annotation.id, node)}
         stroke={color}
@@ -388,8 +436,9 @@ function AnnotationLayerItem({
   if (annotation.type === "arrow") {
     return (
       <Group
-        draggable={interactive}
+        draggable={interactive && !isTransforming}
         onClick={(event) => onSelect(event, annotation.id)}
+        onMouseDown={(event) => onSelect(event, annotation.id)}
         onDragEnd={(event) =>
           onMoveAnnotation(
             annotation,
@@ -398,6 +447,7 @@ function AnnotationLayerItem({
           )
         }
         onTap={(event) => onSelect(event, annotation.id)}
+        onTouchStart={(event) => onSelect(event, annotation.id)}
         ref={(node) => setNodeRef(annotation.id, node)}
         x={annotation.x * size.width}
         y={annotation.y * size.height}
@@ -425,12 +475,14 @@ function AnnotationLayerItem({
 
   return (
     <Line
-      draggable={interactive}
+      draggable={interactive && !isTransforming}
       lineCap="round"
       lineJoin="round"
       onClick={(event) => onSelect(event, annotation.id)}
+      onMouseDown={(event) => onSelect(event, annotation.id)}
       onDragEnd={(event) => onMoveBrush(annotation, event.target as Konva.Line)}
       onTap={(event) => onSelect(event, annotation.id)}
+      onTouchStart={(event) => onSelect(event, annotation.id)}
       points={annotation.points.flatMap((point) => [point.x * size.width, point.y * size.height])}
       ref={(node) => setNodeRef(annotation.id, node)}
       shadowBlur={8}

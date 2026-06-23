@@ -121,6 +121,8 @@ export type ImageEditAction =
   | { type: "remove-annotation"; annotationId: string }
   | { type: "set-adjustment"; adjustment: ImageAdjustment; value: number }
   | { type: "reset-beautify" }
+  | { type: "reset-transform" }
+  | { type: "reset-layers" }
   | { type: "undo" }
   | { type: "redo" }
   | { type: "reset" };
@@ -651,6 +653,24 @@ function reduceImageEditState(
         adjustments: { ...defaultImageEditState.adjustments },
         filterPreset: defaultImageEditState.filterPreset,
         filterStrength: defaultImageEditState.filterStrength,
+      };
+    case "reset-transform":
+      return {
+        ...cloneImageEditState(state),
+        cropAspect: defaultImageEditState.cropAspect,
+        cropRect: defaultImageEditState.cropRect,
+        flipHorizontal: defaultImageEditState.flipHorizontal,
+        flipVertical: defaultImageEditState.flipVertical,
+        resizeWidth: defaultImageEditState.resizeWidth,
+        rotation: defaultImageEditState.rotation,
+      };
+    case "reset-layers":
+      return {
+        ...cloneImageEditState(state),
+        annotations: [],
+        watermarkLayer: cloneWatermarkLayer(defaultImageEditState.watermarkLayer),
+        watermarkPosition: defaultImageEditState.watermarkPosition,
+        watermarkText: defaultImageEditState.watermarkText,
       };
   }
 }

@@ -100,6 +100,14 @@ export function ImageEditorPanel({
               value={imageState.resizeWidth ?? ""}
             />
           </div>
+          <button
+            className="tool-button full-width"
+            onClick={() => onApply({ type: "reset-transform" })}
+            type="button"
+          >
+            <StudioIcon name="restartAlt" size={18} />
+            <span>{t.resetTransform}</span>
+          </button>
         </div>
       ) : null}
 
@@ -251,6 +259,14 @@ export function ImageEditorPanel({
               )}
             </div>
           </div>
+          <button
+            className="tool-button full-width"
+            onClick={() => onApply({ type: "reset-layers" })}
+            type="button"
+          >
+            <StudioIcon name="restartAlt" size={18} />
+            <span>{t.resetLayers}</span>
+          </button>
         </div>
       ) : null}
 

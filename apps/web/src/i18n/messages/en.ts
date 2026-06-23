@@ -87,6 +87,8 @@ export const en = {
   filterFilm: "Film",
   filterFade: "Fade",
   resetBeautify: "Reset beautify",
+  resetTransform: "Reset transform",
+  resetLayers: "Reset layers",
   watermarkText: "Watermark text",
   watermarkPosition: "Watermark position",
   watermarkTopLeft: "Top left",
