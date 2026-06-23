@@ -290,7 +290,7 @@ describe("media workspace shell", () => {
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Image preview ready."));
     await user.click(screen.getByRole("button", { name: /export current asset/i }));
 
-    expect(await screen.findByText(/export saved/i)).toBeInTheDocument();
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Export saved."));
     expect(screen.queryByRole("link", { name: /download cover-photo-edited.webp/i })).toBeNull();
     expect(toBlobSpy).toHaveBeenCalledWith(expect.any(Function), "image/webp", 0.7);
   });
@@ -379,7 +379,7 @@ describe("media workspace shell", () => {
 
     await user.click(screen.getByRole("button", { name: /export current asset/i }));
 
-    expect(await screen.findByText(/export saved/i)).toBeInTheDocument();
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Export saved."));
     expect(exportEditedVideoMock).toHaveBeenCalledWith(
       expect.objectContaining({
         state: expect.objectContaining({

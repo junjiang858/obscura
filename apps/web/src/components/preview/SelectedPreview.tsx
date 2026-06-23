@@ -263,7 +263,7 @@ export function SelectedPreview({
         kind: "video",
       });
       setPreviewStatus("ready");
-      setPreviewMessage(t.videoPreviewReady);
+      setPreviewMessage(null);
       setPreviewProgress(100);
       setCurrentVideoTime(0);
       showStudioSuccess(t.videoPreviewReady);
@@ -274,7 +274,7 @@ export function SelectedPreview({
 
       if (isAbortError(error)) {
         setPreviewStatus("canceled");
-        setPreviewMessage(t.videoPreviewCanceled);
+        setPreviewMessage(null);
         showStudioInfo(t.videoPreviewCanceled);
         return;
       }

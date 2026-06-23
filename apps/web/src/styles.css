@@ -2141,6 +2141,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   }
 
   .mobile-tabs {
+    position: relative;
+    z-index: 4;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
@@ -2158,6 +2160,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
   .workspace-grid {
     display: block;
+    height: 100%;
     min-height: 0;
   }
 
@@ -2165,7 +2168,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   .preview-stage,
   .editor-rail {
     display: none;
-    height: calc(100dvh - 132px);
+    height: 100%;
   }
 
   .media-panel.is-mobile-visible,
@@ -2243,12 +2246,14 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
   .mobile-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(48px, auto));
+    min-height: 102px;
   }
 
   .media-panel,
   .preview-stage,
   .editor-rail {
-    height: calc(100dvh - 182px);
+    height: 100%;
   }
 
   .empty-preview {

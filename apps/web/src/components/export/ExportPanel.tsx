@@ -85,6 +85,11 @@ export function ExportPanel({
     generatedPreview.fingerprint === currentPreviewFingerprint
       ? generatedPreview
       : null;
+  const jobStatus = videoJob?.status ?? status;
+  const jobMessage =
+    status === "saved" || status === "canceled" || status === "failed"
+      ? message
+      : (videoJob?.error?.message ?? videoJob?.message ?? message);
 
   useEffect(() => {
     return () => {
@@ -163,12 +168,12 @@ export function ExportPanel({
       setMessage(t.downloadReady);
       await saveImageExport(nextResult, imageExportSettings.format);
       setStatus("saved");
-      setMessage(t.exportSaved);
+      setMessage(null);
       showStudioSuccess(t.exportSaved);
     } catch (error) {
       if (isAbortError(error)) {
         setStatus("canceled");
-        setMessage(t.exportCanceled);
+        setMessage(null);
         showStudioInfo(t.exportCanceled);
         return;
       }
@@ -212,12 +217,12 @@ export function ExportPanel({
       setMessage(t.downloadReady);
       await saveVideoExport(nextResult);
       setStatus("saved");
-      setMessage(t.exportSaved);
+      setMessage(null);
       showStudioSuccess(t.exportSaved);
     } catch (error) {
       if (isAbortError(error)) {
         setStatus("canceled");
-        setMessage(t.exportCanceled);
+        setMessage(null);
         showStudioInfo(t.exportCanceled);
         return;
       }
@@ -268,17 +273,10 @@ export function ExportPanel({
               : t.exportCurrentAsset}
         </span>
       </button>
-      {message || videoJob ? (
-        <div className={`job-message ${videoJob?.status ?? status}`}>
-          <StudioIcon
-            name={(videoJob?.status ?? status) === "failed" ? "warning" : "checkCircle"}
-            size={17}
-          />
-          <span>
-            {status === "saved" || status === "canceled" || status === "failed"
-              ? message
-              : (videoJob?.error?.message ?? videoJob?.message ?? message)}
-          </span>
+      {jobMessage ? (
+        <div className={`job-message ${jobStatus}`}>
+          <StudioIcon name={jobStatus === "failed" ? "warning" : "checkCircle"} size={17} />
+          <span>{jobMessage}</span>
         </div>
       ) : null}
       {videoJob?.status === "loading" || videoJob?.status === "processing" ? (

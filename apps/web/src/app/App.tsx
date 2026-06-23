@@ -425,109 +425,111 @@ export default function App() {
   }
 
   return (
-    <div className="workspace" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
-      <input
-        ref={fileInputRef}
-        aria-label={t.chooseMedia}
-        className="sr-only"
-        multiple
-        onChange={(event) => handleFiles(event.currentTarget.files)}
-        type="file"
-        accept="image/*,video/*"
-      />
-
-      <StudioToaster />
-
-      <TopToolbar
-        canEditSelectedImage={canEditSelectedImage}
-        language={language}
-        onApplyImageAction={handleApplyImageAction}
-        onLanguageChange={setLanguage}
-        onSelectAdjacent={selectAdjacent}
-        selectedAsset={selectedAsset}
-        t={t}
-        totalAssets={assets.length}
-      />
-
-      <MobileTabs
-        activeTab={currentMobileTab}
-        onChange={setActiveMobileTab}
-        tabs={workspaceTabs}
-        t={t}
-      />
-
-      <div
-        className={`workspace-grid mobile-tab-${currentMobileTab} ${
-          assets.length ? "" : "is-empty"
-        }`}
-      >
-        <MediaLibraryPanel
-          activeFilter={filter}
-          assets={visibleAssets}
-          isVisible={currentMobileTab === "library"}
-          onAddMedia={openFilePicker}
-          onFilterChange={setFilter}
-          onRemoveSelected={handleRemoveSelectedAsset}
-          onSelectAsset={(assetId) => {
-            selectAsset(assetId);
-            setActiveMobileTab("preview");
-          }}
-          selectedAssetId={selectedAssetId}
-          t={t}
-          totalAssets={assets.length}
-          videoPosters={videoPostersByAsset}
+    <>
+      <div className="workspace" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+        <input
+          ref={fileInputRef}
+          aria-label={t.chooseMedia}
+          className="sr-only"
+          multiple
+          onChange={(event) => handleFiles(event.currentTarget.files)}
+          type="file"
+          accept="image/*,video/*"
         />
 
-        <PreviewStage
-          compareOriginal={showCompareOriginal}
-          currentPreviewFingerprint={selectedPreviewFingerprint}
-          generatedPreview={selectedGeneratedPreview}
-          imageExportSettings={selectedImageExportSettings}
-          imagePreviewRequestKey={imagePreviewRequestKey}
-          imageState={selectedImageState}
-          isFullscreen={isPreviewFullscreen}
-          isVisible={currentMobileTab === "preview"}
-          onAddMedia={openFilePicker}
+        <TopToolbar
+          canEditSelectedImage={canEditSelectedImage}
+          language={language}
           onApplyImageAction={handleApplyImageAction}
-          onCompareToggle={() => setCompareOriginal((value) => !value)}
-          onFullscreenToggle={() => setIsPreviewFullscreen((value) => !value)}
-          onGeneratedPreview={handleGeneratedPreview}
-          onPreviewBackgroundChange={setPreviewBackground}
-          onZoomChange={setZoom}
-          previewBackground={previewBackground}
+          onLanguageChange={setLanguage}
+          onSelectAdjacent={selectAdjacent}
           selectedAsset={selectedAsset}
           t={t}
-          videoState={selectedVideoState}
-          videoPreviewRequestKey={videoPreviewRequestKey}
-          zoom={zoom}
+          totalAssets={assets.length}
         />
 
-        {assets.length ? (
-          <EditorRail
-            backgroundRemovalJob={backgroundRemovalJob}
+        <MobileTabs
+          activeTab={currentMobileTab}
+          onChange={setActiveMobileTab}
+          tabs={workspaceTabs}
+          t={t}
+        />
+
+        <div
+          className={`workspace-grid mobile-tab-${currentMobileTab} ${
+            assets.length ? "" : "is-empty"
+          }`}
+        >
+          <MediaLibraryPanel
+            activeFilter={filter}
+            assets={visibleAssets}
+            isVisible={currentMobileTab === "library"}
+            onAddMedia={openFilePicker}
+            onFilterChange={setFilter}
+            onRemoveSelected={handleRemoveSelectedAsset}
+            onSelectAsset={(assetId) => {
+              selectAsset(assetId);
+              setActiveMobileTab("preview");
+            }}
+            selectedAssetId={selectedAssetId}
+            t={t}
+            totalAssets={assets.length}
+            videoPosters={videoPostersByAsset}
+          />
+
+          <PreviewStage
+            compareOriginal={showCompareOriginal}
             currentPreviewFingerprint={selectedPreviewFingerprint}
             generatedPreview={selectedGeneratedPreview}
             imageExportSettings={selectedImageExportSettings}
+            imagePreviewRequestKey={imagePreviewRequestKey}
             imageState={selectedImageState}
-            isVisible={currentMobileTab === "edit" || currentMobileTab === "export"}
+            isFullscreen={isPreviewFullscreen}
+            isVisible={currentMobileTab === "preview"}
+            onAddMedia={openFilePicker}
             onApplyImageAction={handleApplyImageAction}
-            onApplyVideoAction={handleApplyVideoAction}
-            onImageExportSettingsChange={(patch) => {
-              if (selectedAsset?.kind === "image") {
-                updateImageExportSettings(selectedAsset.id, patch);
-              }
-            }}
-            onGenerateImagePreview={() => setImagePreviewRequestKey((key) => key + 1)}
-            onGenerateVideoPreview={() => setVideoPreviewRequestKey((key) => key + 1)}
-            onRemoveBackground={() => void handleRemoveBackground()}
+            onCompareToggle={() => setCompareOriginal((value) => !value)}
+            onFullscreenToggle={() => setIsPreviewFullscreen((value) => !value)}
+            onGeneratedPreview={handleGeneratedPreview}
+            onPreviewBackgroundChange={setPreviewBackground}
+            onZoomChange={setZoom}
+            previewBackground={previewBackground}
             selectedAsset={selectedAsset}
             t={t}
             videoState={selectedVideoState}
-            videoThumbnails={selectedVideoThumbnails}
+            videoPreviewRequestKey={videoPreviewRequestKey}
+            zoom={zoom}
           />
-        ) : null}
+
+          {assets.length ? (
+            <EditorRail
+              backgroundRemovalJob={backgroundRemovalJob}
+              currentPreviewFingerprint={selectedPreviewFingerprint}
+              generatedPreview={selectedGeneratedPreview}
+              imageExportSettings={selectedImageExportSettings}
+              imageState={selectedImageState}
+              isVisible={currentMobileTab === "edit" || currentMobileTab === "export"}
+              onApplyImageAction={handleApplyImageAction}
+              onApplyVideoAction={handleApplyVideoAction}
+              onImageExportSettingsChange={(patch) => {
+                if (selectedAsset?.kind === "image") {
+                  updateImageExportSettings(selectedAsset.id, patch);
+                }
+              }}
+              onGenerateImagePreview={() => setImagePreviewRequestKey((key) => key + 1)}
+              onGenerateVideoPreview={() => setVideoPreviewRequestKey((key) => key + 1)}
+              onRemoveBackground={() => void handleRemoveBackground()}
+              selectedAsset={selectedAsset}
+              t={t}
+              videoState={selectedVideoState}
+              videoThumbnails={selectedVideoThumbnails}
+            />
+          ) : null}
+        </div>
       </div>
-    </div>
+
+      <StudioToaster />
+    </>
   );
 }
 
