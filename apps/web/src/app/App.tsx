@@ -12,6 +12,10 @@ import { PreviewStage } from "../components/preview/PreviewStage";
 import type { PreviewBackground } from "../components/preview/types";
 import { MobileTabs } from "../components/studio/MobileTabs";
 import { StudioToaster } from "../components/studio/StudioToaster";
+import {
+  TaskLaunchAnimation,
+  type TaskLaunchMarker,
+} from "../components/studio/TaskLaunchAnimation";
 import { TopToolbar } from "../components/studio/TopToolbar";
 import { showStudioError, showStudioSuccess } from "../components/studio/studio-toast";
 import { emptyWorkspaceTabs, populatedWorkspaceTabs } from "../config/workspace";
@@ -30,6 +34,8 @@ import {
   type GeneratedPreview,
 } from "../utils/generated-preview";
 import { readAssetMetadata } from "../utils/media-metadata";
+import type { ImageExportResult } from "../utils/image-export";
+import type { VideoExportResult } from "../utils/video-export";
 import {
   generateVideoPoster,
   generateVideoThumbnails,
@@ -46,6 +52,7 @@ export default function App() {
   const [imagePreviewRequestKey, setImagePreviewRequestKey] = useState(0);
   const [previewBackground, setPreviewBackground] = useState<PreviewBackground>("transparent");
   const [videoPreviewRequestKey, setVideoPreviewRequestKey] = useState(0);
+  const [taskLaunch, setTaskLaunch] = useState<TaskLaunchMarker | null>(null);
   const [generatedPreviews, setGeneratedPreviews] = useState<Record<string, GeneratedPreview>>({});
   const [videoThumbnailsByAsset, setVideoThumbnailsByAsset] = useState<
     Record<string, VideoThumbnail[]>
@@ -53,6 +60,9 @@ export default function App() {
   const [videoPostersByAsset, setVideoPostersByAsset] = useState<Record<string, string>>({});
   const [zoom, setZoom] = useState(100);
   const generatedPreviewsRef = useRef(generatedPreviews);
+  const knownJobIdsRef = useRef<Set<string>>(new Set());
+  const launchSequenceRef = useRef(0);
+  const taskLaunchTimerRef = useRef<number | null>(null);
   const videoThumbnailsRef = useRef(videoThumbnailsByAsset);
   const videoPostersRef = useRef(videoPostersByAsset);
   const t = messages[language];
@@ -64,6 +74,7 @@ export default function App() {
   const imageHistories = useMediaStore((state) => state.imageHistories);
   const videoEdits = useMediaStore((state) => state.videoEdits);
   const addFiles = useMediaStore((state) => state.addFiles);
+  const addGeneratedFile = useMediaStore((state) => state.addGeneratedFile);
   const selectAsset = useMediaStore((state) => state.selectAsset);
   const selectAdjacent = useMediaStore((state) => state.selectAdjacent);
   const setFilter = useMediaStore((state) => state.setFilter);
@@ -79,6 +90,7 @@ export default function App() {
   const failJob = useJobStore((state) => state.failJob);
 
   const visibleAssets = useMemo(() => getVisibleAssets(assets, filter), [assets, filter]);
+  const processingJobs = useMemo(() => Object.values(jobs), [jobs]);
   const selectedAsset = useMemo<WorkspaceAsset | null>(
     () => assets.find((asset) => asset.id === selectedAssetId) ?? null,
     [assets, selectedAssetId],
@@ -121,12 +133,22 @@ export default function App() {
     : null;
   const backgroundRemovalJob =
     selectedAsset?.kind === "image"
-      ? (jobs[getBackgroundRemovalJobId(selectedAsset.id)] ?? null)
+      ? (Object.values(jobs).find(
+          (job) =>
+            job.type === "background-removal" &&
+            job.sourceAssetId === selectedAsset.id &&
+            isActiveJob(job),
+        ) ?? null)
       : null;
   const canEditSelectedImage = selectedAsset?.kind === "image" && Boolean(selectedImageState);
   const workspaceTabs = assets.length ? populatedWorkspaceTabs : emptyWorkspaceTabs;
   const currentMobileTab = workspaceTabs.includes(activeMobileTab) ? activeMobileTab : "preview";
   const showCompareOriginal = compareOriginal && selectedAsset?.kind === "image";
+
+  function getNextLaunchId(jobId: string) {
+    launchSequenceRef.current += 1;
+    return `${jobId}:${launchSequenceRef.current}`;
+  }
 
   useEffect(() => {
     const assetsNeedingMetadata = assets.filter(
@@ -190,6 +212,10 @@ export default function App() {
 
   useEffect(() => {
     return () => {
+      if (taskLaunchTimerRef.current) {
+        window.clearTimeout(taskLaunchTimerRef.current);
+      }
+
       for (const thumbnails of Object.values(videoThumbnailsRef.current)) {
         revokeVideoThumbnails(thumbnails);
       }
@@ -203,6 +229,44 @@ export default function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const knownLaunchIds = knownJobIdsRef.current;
+    const currentLaunchIds = new Set(Object.values(jobs).map((job) => job.launchId ?? job.id));
+    const nextJob = Object.values(jobs).find((job) => {
+      const launchId = job.launchId ?? job.id;
+
+      return !knownLaunchIds.has(launchId);
+    });
+
+    for (const launchId of Array.from(knownLaunchIds)) {
+      if (!currentLaunchIds.has(launchId)) {
+        knownLaunchIds.delete(launchId);
+      }
+    }
+
+    for (const launchId of currentLaunchIds) {
+      knownLaunchIds.add(launchId);
+    }
+
+    if (!nextJob) {
+      return;
+    }
+
+    if (taskLaunchTimerRef.current) {
+      window.clearTimeout(taskLaunchTimerRef.current);
+    }
+
+    setTaskLaunch({
+      icon: "download",
+      id: getNextLaunchId(nextJob.id),
+      label: nextJob.title ?? nextJob.message ?? t.processing,
+    });
+    taskLaunchTimerRef.current = window.setTimeout(() => {
+      setTaskLaunch(null);
+      taskLaunchTimerRef.current = null;
+    }, 1250);
+  }, [jobs, t.processing]);
 
   useEffect(() => {
     const videoAssetsNeedingPosters = assets.filter(
@@ -337,6 +401,66 @@ export default function App() {
         [preview.assetId]: preview,
       };
     });
+
+    const generatedAsset = addGeneratedResultFile({
+      generatedByJobId: preview.jobId,
+      result: preview,
+      sourceAssetId: preview.assetId,
+    });
+
+    completeJob(
+      preview.jobId,
+      preview.kind === "image" ? t.imagePreviewReady : t.videoPreviewReady,
+      {
+        filename: preview.filename,
+        resultAssetId: generatedAsset.id,
+        url: generatedAsset.objectUrl,
+      },
+    );
+  }
+
+  function handleGeneratedExportResult({
+    jobId,
+    result,
+    sourceAssetId,
+  }: {
+    jobId: string;
+    result: ImageExportResult | VideoExportResult;
+    sourceAssetId: string;
+  }) {
+    const generatedAsset = addGeneratedResultFile({
+      generatedByJobId: jobId,
+      result,
+      sourceAssetId,
+    });
+
+    completeJob(jobId, t.downloadReady, {
+      filename: result.filename,
+      resultAssetId: generatedAsset.id,
+      url: generatedAsset.objectUrl,
+    });
+
+    return generatedAsset;
+  }
+
+  function addGeneratedResultFile({
+    generatedByJobId,
+    result,
+    sourceAssetId,
+  }: {
+    generatedByJobId: string;
+    result: ImageExportResult | VideoExportResult;
+    sourceAssetId: string;
+  }) {
+    const sourceAsset = assets.find((asset) => asset.id === sourceAssetId);
+    const file = new File([result.blob], result.filename, {
+      type: result.blob.type || sourceAsset?.mimeType || "application/octet-stream",
+    });
+
+    return addGeneratedFile(sourceAssetId, file, {
+      generatedByJobId,
+      sourceAssetId,
+    });
   }
 
   async function handleRemoveBackground() {
@@ -345,13 +469,29 @@ export default function App() {
     }
 
     const asset = selectedAsset;
-    const jobId = getBackgroundRemovalJobId(asset.id);
+    const jobId = getNextLaunchId(getBackgroundRemovalJobId(asset.id));
 
-    if (isActiveJob(jobs[jobId])) {
+    if (
+      Object.values(jobs).some(
+        (job) =>
+          job.type === "background-removal" && job.sourceAssetId === asset.id && isActiveJob(job),
+      )
+    ) {
       return;
     }
 
-    queueJob(jobId, "background-removal", t.backgroundRemovalRunning);
+    queueJob(jobId, "background-removal", t.backgroundRemovalRunning, {
+      fingerprint: `${asset.id}:background-removal:${asset.size}:${asset.name}`,
+      inputSnapshot: {
+        name: asset.name,
+        size: asset.size,
+      },
+      launchId: jobId,
+      sourceAssetId: asset.id,
+      sourceAssetKind: "image",
+      sourceAssetName: asset.name,
+      title: t.backgroundRemovalTask,
+    });
 
     try {
       const result = await runImageBackgroundRemoval({
@@ -359,9 +499,17 @@ export default function App() {
         source: asset.file,
       });
 
-      completeJob(jobId, t.backgroundRemovalComplete);
+      const generatedAsset = addGeneratedFile(asset.id, result.file, {
+        generatedByJobId: jobId,
+        sourceAssetId: asset.id,
+      });
+
+      completeJob(jobId, t.backgroundRemovalComplete, {
+        filename: result.file.name,
+        resultAssetId: generatedAsset.id,
+        url: generatedAsset.objectUrl,
+      });
       showStudioSuccess(t.backgroundRemovalComplete);
-      addFiles([result.file]);
     } catch (error) {
       const errorMessage = getBackgroundRemovalErrorMessage(error, t.backgroundRemovalFailed);
       failJob(jobId, {
@@ -443,6 +591,7 @@ export default function App() {
           onApplyImageAction={handleApplyImageAction}
           onLanguageChange={setLanguage}
           onSelectAdjacent={selectAdjacent}
+          processingJobs={processingJobs}
           selectedAsset={selectedAsset}
           t={t}
           totalAssets={assets.length}
@@ -480,7 +629,6 @@ export default function App() {
           <PreviewStage
             compareOriginal={showCompareOriginal}
             currentPreviewFingerprint={selectedPreviewFingerprint}
-            generatedPreview={selectedGeneratedPreview}
             imageExportSettings={selectedImageExportSettings}
             imagePreviewRequestKey={imagePreviewRequestKey}
             imageState={selectedImageState}
@@ -518,6 +666,7 @@ export default function App() {
               }}
               onGenerateImagePreview={() => setImagePreviewRequestKey((key) => key + 1)}
               onGenerateVideoPreview={() => setVideoPreviewRequestKey((key) => key + 1)}
+              onGeneratedExportResult={handleGeneratedExportResult}
               onRemoveBackground={() => void handleRemoveBackground()}
               selectedAsset={selectedAsset}
               t={t}
@@ -529,6 +678,7 @@ export default function App() {
       </div>
 
       <StudioToaster />
+      <TaskLaunchAnimation launch={taskLaunch} t={t} />
     </>
   );
 }

@@ -69,8 +69,10 @@ export const workerJobStatusSchema = z.enum([
 export const workerJobTypeSchema = z.enum([
   "metadata",
   "thumbnail",
+  "image-preview",
   "image-export",
   "background-removal",
+  "video-preview",
   "video-export",
 ]);
 
@@ -80,6 +82,21 @@ export const workerJobSchema = z.object({
   status: workerJobStatusSchema,
   progress: z.number().min(0).max(100).optional(),
   message: z.string().optional(),
+  fingerprint: z.string().min(1).optional(),
+  inputSnapshot: z.record(z.string(), z.unknown()).optional(),
+  launchId: z.string().min(1).optional(),
+  result: z
+    .object({
+      filename: z.string().min(1).optional(),
+      resultAssetId: z.string().min(1).optional(),
+      url: z.string().min(1).optional(),
+    })
+    .optional(),
+  resultAssetId: z.string().min(1).optional(),
+  sourceAssetId: z.string().min(1).optional(),
+  sourceAssetKind: mediaKindSchema.optional(),
+  sourceAssetName: z.string().min(1).optional(),
+  title: z.string().min(1).optional(),
   error: z
     .object({
       code: z.string().min(1),

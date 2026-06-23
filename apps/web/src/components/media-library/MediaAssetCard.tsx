@@ -20,6 +20,7 @@ export function MediaAssetCard({
   videoPosterUrl?: string | undefined;
 }) {
   const metadata = `${getKindLabel(asset.kind, t)} ${formatFileSize(asset.size)}`;
+  const isGeneratedAsset = Boolean(asset.generatedByJobId);
 
   return (
     <li className="asset-list-item">
@@ -44,7 +45,12 @@ export function MediaAssetCard({
           )}
         </span>
         <span className="asset-card-copy">
-          <span className="asset-name">{asset.name}</span>
+          <span className="asset-card-title-row">
+            <span className="asset-name">{asset.name}</span>
+            {isGeneratedAsset ? (
+              <span className="asset-generated-tag">{t.generatedAsset}</span>
+            ) : null}
+          </span>
           <span className="asset-metadata">{metadata}</span>
         </span>
         <span className="asset-card-status">

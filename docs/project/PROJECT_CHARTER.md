@@ -123,6 +123,7 @@
 | VideoEditState | Stores video operations such as trim range, speed, current time, loop state, subtitle cues, and export settings                                   | Local user |
 | SubtitleCue    | Represents one manual subtitle segment with start time, end time, and text                                                                        | Local user |
 | ExportJob      | Tracks local export status, progress, result file, cancellation, retry, and errors                                                                | Local user |
+| BackgroundJob  | Tracks local generated-preview, encoding, background-removal, and export work that may continue while the user switches media                     | Local user |
 | LocalDraft     | Stores recoverable in-browser session state where feasible                                                                                        | Local user |
 
 ### Operations And States
@@ -134,6 +135,7 @@
 | ImageLayer         | Add, select, drag, resize, rotate, reorder, hide, lock, delete                                  | Selected, dragging, transforming, locked, hidden                                 | Layer order, transform values, visual selection handles |
 | VideoEditState     | Trim, change speed, reset values, add subtitles, scrub preview, apply derived video, export     | Clean, edited, timeline-editing, processing, derived-preview-ready, export-ready | Trim times, speed value, subtitle cues, export settings |
 | ExportJob          | Start, cancel, retry, download                                                                  | Queued, processing, completed, canceled, failed                                  | Progress value, error reason, generated file            |
+| BackgroundJob      | Submit generated preview, encode/export, remove background, cancel, retry, open result          | Queued, loading, processing, completed, canceled, failed                         | Submitted edit snapshot, fingerprint, result asset      |
 | LocalDraft         | Save draft, restore draft, clear draft                                                          | Available, restored, stale, cleared                                              | Browser storage marker and recoverable edit state       |
 
 ### External Systems And Resources
@@ -154,6 +156,9 @@
 - Safety constraints: Show clear warnings or limits for very large files, unsupported formats, codec failures, memory pressure, and long-running processing.
 - Failure handling: Every long-running operation must have progress when feasible, cancellation when feasible, and a readable failure reason with retry or reset path.
 - Privacy rule: Local-first processing is a product promise for the first version; any future cloud processing requires an explicit source-of-truth update and user confirmation.
+- Local job rule: Background jobs are runtime browser jobs, not backend jobs. Each job captures the submitted media id, edit/export settings, and fingerprint at launch; switching media or continuing to edit the source must not mutate the submitted job.
+- Generated result rule: Completed generated or encoded results may be inserted into the media library as new local assets with temporary object URLs. This does not persist raw media long-term and does not upload media.
+- Reset rule: Parameter reset controls remain for editable state such as trim, speed, format, time, transform, beautify, and layers. Generated result reset controls are not needed because generated outputs become separate media assets.
 
 ## Risks
 

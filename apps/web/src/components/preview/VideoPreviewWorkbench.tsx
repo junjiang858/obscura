@@ -1,45 +1,32 @@
 import type { CSSProperties } from "react";
 import { formatDuration, type VideoEditState } from "@obscura/media-core";
+import { getVideoExportFormatFromMimeType } from "../../config/media";
 import type { Copy } from "../../i18n";
 import { StudioIcon } from "../../icons/studio-icons";
 import type { WorkspaceAsset } from "../../stores/media-store";
-
-export type VideoPreviewStatus = "idle" | "busy" | "ready" | "canceled" | "failed" | "stale";
 
 export function VideoPreviewWorkbench({
   asset,
   currentTime,
   duration,
-  isDerivedPreview,
   isLooping,
   isPlaying,
-  onCancelPreview,
-  onGeneratePreview,
   onLoopToggle,
   onPlayToggle,
   onResetTime,
   onScrub,
-  previewMessage,
-  previewProgress,
-  previewStatus,
   t,
   videoState,
 }: {
   asset: WorkspaceAsset;
   currentTime: number;
   duration: number;
-  isDerivedPreview: boolean;
   isLooping: boolean;
   isPlaying: boolean;
-  onCancelPreview: () => void;
-  onGeneratePreview: () => void;
   onLoopToggle: () => void;
   onPlayToggle: () => void;
   onResetTime: () => void;
   onScrub: (time: number) => void;
-  previewMessage: string | null;
-  previewProgress: number;
-  previewStatus: VideoPreviewStatus;
   t: Copy;
   videoState: VideoEditState;
 }) {
@@ -48,16 +35,16 @@ export function VideoPreviewWorkbench({
   const scrubberStyle = { "--range-progress": `${progress}%` } as CSSProperties;
   const dimensions =
     asset.width && asset.height ? `${Math.round(asset.width)} x ${Math.round(asset.height)}` : "--";
+  const sourceFormat = getVideoExportFormatFromMimeType(asset.mimeType).toUpperCase();
 
   return (
     <div className="video-workbench">
       <div className="video-workbench-header">
         <div>
           <span>{`${t.composition} ${dimensions}`}</span>
-          <strong>{isDerivedPreview ? t.derivedPreview : t.sourcePreview}</strong>
         </div>
         <div className="video-workbench-badges">
-          <span>{videoState.exportFormat.toUpperCase()}</span>
+          <span>{sourceFormat}</span>
           <span>{`${videoState.speed}x`}</span>
         </div>
       </div>
@@ -102,38 +89,7 @@ export function VideoPreviewWorkbench({
         >
           <StudioIcon name="loop" size={19} />
         </button>
-        {previewStatus === "busy" ? (
-          <button className="secondary-button" onClick={onCancelPreview} type="button">
-            <StudioIcon name="close" size={17} />
-            <span>{t.cancelVideoPreview}</span>
-          </button>
-        ) : null}
-        {previewStatus === "failed" ? (
-          <button className="secondary-button" onClick={onGeneratePreview} type="button">
-            <StudioIcon name="checkCircle" size={17} />
-            <span>{t.retryVideoPreview}</span>
-          </button>
-        ) : null}
       </div>
-
-      {previewStatus === "busy" && previewMessage ? (
-        <div className={`job-message ${previewStatus}`}>
-          <StudioIcon name="checkCircle" size={17} />
-          <span>{previewMessage}</span>
-        </div>
-      ) : null}
-      {previewStatus === "busy" ? (
-        <div
-          aria-label={t.generatingVideoPreview}
-          aria-valuemax={100}
-          aria-valuemin={0}
-          aria-valuenow={previewProgress}
-          className="job-progress"
-          role="progressbar"
-        >
-          <span style={{ width: `${previewProgress}%` }} />
-        </div>
-      ) : null}
     </div>
   );
 }

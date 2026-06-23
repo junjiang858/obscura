@@ -10,7 +10,6 @@ import type { PreviewBackground } from "./types";
 export function PreviewStage({
   compareOriginal,
   currentPreviewFingerprint,
-  generatedPreview,
   imageExportSettings,
   imagePreviewRequestKey,
   imageState,
@@ -32,7 +31,6 @@ export function PreviewStage({
 }: {
   compareOriginal: boolean;
   currentPreviewFingerprint: string | null;
-  generatedPreview: GeneratedPreview | null;
   imageExportSettings: ImageExportSettings | null;
   imagePreviewRequestKey: number;
   imageState: ImageEditState | null;
@@ -61,7 +59,6 @@ export function PreviewStage({
           asset={selectedAsset}
           compareOriginal={compareOriginal}
           currentPreviewFingerprint={currentPreviewFingerprint}
-          generatedPreview={generatedPreview}
           imageExportSettings={imageExportSettings}
           imagePreviewRequestKey={imagePreviewRequestKey}
           imageState={imageState}

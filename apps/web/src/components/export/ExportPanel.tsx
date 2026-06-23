@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ImageEditState, ImageExportFormat, VideoEditState } from "@obscura/media-core";
 import {
   imageExportFormats,
@@ -34,6 +34,7 @@ export function ExportPanel({
   generatedPreview,
   imageExportSettings,
   imageState,
+  onGeneratedResult,
   selectedAsset,
   t,
   videoState,
@@ -42,6 +43,11 @@ export function ExportPanel({
   generatedPreview: GeneratedPreview | null;
   imageExportSettings: ImageExportSettings | null;
   imageState: ImageEditState | null;
+  onGeneratedResult: (payload: {
+    jobId: string;
+    result: ImageExportResult | VideoExportResult;
+    sourceAssetId: string;
+  }) => void;
   selectedAsset: WorkspaceAsset | null;
   t: Copy;
   videoState: VideoEditState | null;
@@ -49,13 +55,14 @@ export function ExportPanel({
   const [status, setStatus] = useState<ExportStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<ImageExportResult | VideoExportResult | null>(null);
+  const [activeExportJobId, setActiveExportJobId] = useState<string | null>(null);
   const [imageAvailability, setImageAvailability] = useState<
     Partial<Record<ImageExportFormat, ImageExportAvailability>>
   >({});
+  const launchSequenceRef = useRef(0);
   const jobs = useJobStore((state) => state.jobs);
   const queueJob = useJobStore((state) => state.queueJob);
   const updateJob = useJobStore((state) => state.updateJob);
-  const completeJob = useJobStore((state) => state.completeJob);
   const failJob = useJobStore((state) => state.failJob);
   const activeImageAvailability =
     selectedAsset?.kind === "image" && imageExportSettings
@@ -73,8 +80,7 @@ export function ExportPanel({
   const canExportVideo =
     selectedAsset?.kind === "video" && selectedAsset.status === "ready" && Boolean(videoState);
   const canExport = canExportImage || canExportVideo;
-  const videoJobId = selectedAsset?.kind === "video" ? `video-export:${selectedAsset.id}` : null;
-  const videoJob = videoJobId ? (jobs[videoJobId] ?? null) : null;
+  const activeExportJob = activeExportJobId ? (jobs[activeExportJobId] ?? null) : null;
   const activeFormat =
     selectedAsset?.kind === "video" ? videoState?.exportFormat : imageExportSettings?.format;
   const matchingGeneratedPreview =
@@ -85,11 +91,11 @@ export function ExportPanel({
     generatedPreview.fingerprint === currentPreviewFingerprint
       ? generatedPreview
       : null;
-  const jobStatus = videoJob?.status ?? status;
+  const jobStatus = activeExportJob?.status ?? status;
   const jobMessage =
     status === "saved" || status === "canceled" || status === "failed"
       ? message
-      : (videoJob?.error?.message ?? videoJob?.message ?? message);
+      : (activeExportJob?.error?.message ?? activeExportJob?.message ?? message);
 
   useEffect(() => {
     return () => {
@@ -146,6 +152,20 @@ export function ExportPanel({
 
     setStatus("busy");
     setMessage(t.preparingImageExport);
+    const imageJobId = getNextLaunchId(`image-export:${selectedAsset.id}`);
+    setActiveExportJobId(imageJobId);
+    queueJob(imageJobId, "image-export", t.preparingImageExport, {
+      fingerprint: currentPreviewFingerprint ?? `${selectedAsset.id}:image-export`,
+      inputSnapshot: {
+        format: imageExportSettings.format,
+        quality: imageExportSettings.quality,
+      },
+      launchId: imageJobId,
+      sourceAssetId: selectedAsset.id,
+      sourceAssetKind: "image",
+      sourceAssetName: selectedAsset.name,
+      title: getFormatTaskTitle(t.imageExportTask, imageExportSettings.format),
+    });
 
     try {
       const nextResult =
@@ -164,6 +184,11 @@ export function ExportPanel({
       }
 
       setResult(matchingGeneratedPreview?.kind === "image" ? null : nextResult);
+      onGeneratedResult({
+        jobId: imageJobId,
+        result: nextResult,
+        sourceAssetId: selectedAsset.id,
+      });
       setStatus("ready");
       setMessage(t.downloadReady);
       await saveImageExport(nextResult, imageExportSettings.format);
@@ -179,6 +204,11 @@ export function ExportPanel({
       }
 
       const errorMessage = getExportErrorMessage(error, t);
+      failJob(imageJobId, {
+        code: "image-export-failed",
+        message: errorMessage,
+        recoverable: true,
+      });
       setStatus("failed");
       setMessage(errorMessage);
       showStudioError(errorMessage);
@@ -186,7 +216,7 @@ export function ExportPanel({
   }
 
   async function handleVideoExport(asset: WorkspaceAsset) {
-    if (!videoState || !videoJobId) {
+    if (!videoState) {
       setStatus("failed");
       setMessage(t.videoExportNext);
       showStudioError(t.videoExportNext);
@@ -195,7 +225,23 @@ export function ExportPanel({
 
     setStatus("busy");
     setMessage(t.videoExportNext);
-    queueJob(videoJobId, "video-export", t.videoExportNext);
+    const videoJobId = getNextLaunchId(`video-export:${asset.id}`);
+    setActiveExportJobId(videoJobId);
+    queueJob(videoJobId, "video-export", t.videoExportNext, {
+      fingerprint: currentPreviewFingerprint ?? `${asset.id}:video-export`,
+      inputSnapshot: {
+        exportFormat: videoState.exportFormat,
+        speed: videoState.speed,
+        subtitleCount: videoState.subtitles.length,
+        trimEnd: videoState.trimEnd,
+        trimStart: videoState.trimStart,
+      },
+      launchId: videoJobId,
+      sourceAssetId: asset.id,
+      sourceAssetKind: "video",
+      sourceAssetName: asset.name,
+      title: getFormatTaskTitle(t.videoExportTask, videoState.exportFormat),
+    });
 
     try {
       const nextResult =
@@ -212,7 +258,11 @@ export function ExportPanel({
       }
 
       setResult(matchingGeneratedPreview?.kind === "video" ? null : nextResult);
-      completeJob(videoJobId, t.downloadReady);
+      onGeneratedResult({
+        jobId: videoJobId,
+        result: nextResult,
+        sourceAssetId: asset.id,
+      });
       setStatus("ready");
       setMessage(t.downloadReady);
       await saveVideoExport(nextResult);
@@ -237,6 +287,11 @@ export function ExportPanel({
       setMessage(errorMessage);
       showStudioError(errorMessage);
     }
+  }
+
+  function getNextLaunchId(jobId: string) {
+    launchSequenceRef.current += 1;
+    return `${jobId}:${launchSequenceRef.current}`;
   }
 
   return (
@@ -279,16 +334,16 @@ export function ExportPanel({
           <span>{jobMessage}</span>
         </div>
       ) : null}
-      {videoJob?.status === "loading" || videoJob?.status === "processing" ? (
+      {activeExportJob?.status === "loading" || activeExportJob?.status === "processing" ? (
         <div
-          aria-label={videoJob.message ?? t.videoExportNext}
+          aria-label={activeExportJob.message ?? t.videoExportNext}
           aria-valuemax={100}
           aria-valuemin={0}
-          aria-valuenow={Math.round(videoJob.progress ?? 0)}
+          aria-valuenow={Math.round(activeExportJob.progress ?? 0)}
           className="job-progress"
           role="progressbar"
         >
-          <span style={{ width: `${videoJob.progress ?? 0}%` }} />
+          <span style={{ width: `${activeExportJob.progress ?? 0}%` }} />
         </div>
       ) : null}
       {result && status === "ready" ? (
@@ -298,4 +353,8 @@ export function ExportPanel({
       ) : null}
     </div>
   );
+}
+
+function getFormatTaskTitle(template: string, format: string) {
+  return template.replace("{format}", format.toUpperCase());
 }

@@ -21,8 +21,16 @@ import {
 } from "../config/media";
 
 export type MediaFilter = "all" | MediaKind;
-export type WorkspaceAsset = MediaAsset & { file: File };
+export type WorkspaceAsset = MediaAsset & {
+  file: File;
+  generatedByJobId?: string;
+  sourceAssetId?: string;
+};
 export type MediaMetadataUpdate = Pick<MediaAsset, "width" | "height" | "duration">;
+export type GeneratedAssetMetadata = {
+  generatedByJobId: string;
+  sourceAssetId: string;
+};
 
 type MediaStore = {
   assets: WorkspaceAsset[];
@@ -32,6 +40,11 @@ type MediaStore = {
   imageHistories: Record<string, ImageEditHistory>;
   videoEdits: Record<string, VideoEditState>;
   addFiles: (files: File[]) => void;
+  addGeneratedFile: (
+    sourceAssetId: string,
+    file: File,
+    metadata: GeneratedAssetMetadata,
+  ) => WorkspaceAsset;
   selectAsset: (assetId: string) => void;
   selectAdjacent: (direction: 1 | -1) => void;
   setFilter: (filter: MediaFilter) => void;
@@ -41,6 +54,15 @@ type MediaStore = {
   updateAssetMetadata: (assetId: string, metadata: MediaMetadataUpdate) => void;
   removeSelected: () => void;
 };
+
+type MediaStoreSelectionState = Pick<
+  MediaStore,
+  "assets" | "imageExportSettings" | "imageHistories" | "selectedAssetId" | "videoEdits"
+>;
+
+type EditorDraftPatch = Partial<
+  Pick<MediaStoreSelectionState, "imageExportSettings" | "imageHistories" | "videoEdits">
+>;
 
 export const useMediaStore = create<MediaStore>((set, get) => ({
   assets: [],
@@ -78,28 +100,79 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       selectedAssetId: acceptedAssets[0]?.id ?? state.selectedAssetId,
     }));
   },
-  selectAsset: (assetId) => {
-    set({ selectedAssetId: assetId });
-  },
-  selectAdjacent: (direction) => {
+  addGeneratedFile: (sourceAssetId, file, metadata) => {
     const state = get();
-    const visibleIds = getVisibleAssets(state.assets, state.filter).map((asset) => asset.id);
-    const nextId = getNextAssetId(visibleIds, state.selectedAssetId, direction);
-
-    if (nextId) {
-      set({ selectedAssetId: nextId });
-    }
-  },
-  setFilter: (filter) => {
-    const state = get();
-    const visibleAssets = getVisibleAssets(state.assets, filter);
-    const selectedStillVisible = visibleAssets.some((asset) => asset.id === state.selectedAssetId);
+    const generatedAsset: WorkspaceAsset = {
+      ...createMediaAsset(file, state.assets.length),
+      generatedByJobId: metadata.generatedByJobId,
+      sourceAssetId,
+    };
+    const sourceIndex = state.assets.findIndex((asset) => asset.id === sourceAssetId);
+    const insertIndex = sourceIndex >= 0 ? sourceIndex + 1 : state.assets.length;
+    const nextAssets = [
+      ...state.assets.slice(0, insertIndex),
+      generatedAsset,
+      ...state.assets.slice(insertIndex),
+    ];
+    const nextImageHistories =
+      generatedAsset.kind === "image"
+        ? {
+            ...state.imageHistories,
+            [generatedAsset.id]: initialImageEditHistory(),
+          }
+        : state.imageHistories;
+    const nextImageExportSettings =
+      generatedAsset.kind === "image"
+        ? {
+            ...state.imageExportSettings,
+            [generatedAsset.id]: getDefaultImageExportSettings(generatedAsset.mimeType),
+          }
+        : state.imageExportSettings;
+    const nextVideoEdits =
+      generatedAsset.kind === "video"
+        ? {
+            ...state.videoEdits,
+            [generatedAsset.id]: initialVideoEditState(
+              generatedAsset.duration,
+              getVideoExportFormatFromMimeType(generatedAsset.mimeType),
+            ),
+          }
+        : state.videoEdits;
 
     set({
-      filter,
-      selectedAssetId: selectedStillVisible
+      assets: nextAssets,
+      imageExportSettings: nextImageExportSettings,
+      imageHistories: nextImageHistories,
+      videoEdits: nextVideoEdits,
+    });
+
+    return generatedAsset;
+  },
+  selectAsset: (assetId) => {
+    set((state) => createSelectionPatch(state, assetId));
+  },
+  selectAdjacent: (direction) => {
+    set((state) => {
+      const visibleIds = getVisibleAssets(state.assets, state.filter).map((asset) => asset.id);
+      const nextId = getNextAssetId(visibleIds, state.selectedAssetId, direction);
+
+      return nextId ? createSelectionPatch(state, nextId) : {};
+    });
+  },
+  setFilter: (filter) => {
+    set((state) => {
+      const visibleAssets = getVisibleAssets(state.assets, filter);
+      const selectedStillVisible = visibleAssets.some(
+        (asset) => asset.id === state.selectedAssetId,
+      );
+      const selectedAssetId = selectedStillVisible
         ? state.selectedAssetId
-        : (visibleAssets[0]?.id ?? null),
+        : (visibleAssets[0]?.id ?? null);
+
+      return {
+        filter,
+        ...createSelectionPatch(state, selectedAssetId),
+      };
     });
   },
   updateImageExportSettings: (assetId, patch) => {
@@ -191,15 +264,72 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       delete remainingVideoEdits[state.selectedAssetId];
     }
 
+    const nextSelectedAssetId = visibleAssets[0]?.id ?? null;
+    const selectionBase = {
+      ...state,
+      assets: remainingAssets,
+      imageExportSettings: remainingImageExportSettings,
+      imageHistories: remainingHistories,
+      videoEdits: remainingVideoEdits,
+    };
+
     set({
       assets: remainingAssets,
       imageExportSettings: remainingImageExportSettings,
       imageHistories: remainingHistories,
       videoEdits: remainingVideoEdits,
-      selectedAssetId: visibleAssets[0]?.id ?? null,
+      ...createSelectionPatch(selectionBase, nextSelectedAssetId),
     });
   },
 }));
+
+function createSelectionPatch(
+  state: MediaStoreSelectionState,
+  assetId: string | null,
+): { selectedAssetId: string | null } & EditorDraftPatch {
+  if (state.selectedAssetId === assetId) {
+    return { selectedAssetId: assetId };
+  }
+
+  return {
+    selectedAssetId: assetId,
+    ...(assetId ? createFreshEditorDraftPatch(state, assetId) : {}),
+  };
+}
+
+function createFreshEditorDraftPatch(
+  state: MediaStoreSelectionState,
+  assetId: string,
+): EditorDraftPatch {
+  const asset = state.assets.find((item) => item.id === assetId);
+
+  if (!asset) {
+    return {};
+  }
+
+  if (asset.kind === "image") {
+    return {
+      imageExportSettings: {
+        ...state.imageExportSettings,
+        [asset.id]: getDefaultImageExportSettings(asset.mimeType),
+      },
+      imageHistories: {
+        ...state.imageHistories,
+        [asset.id]: initialImageEditHistory(),
+      },
+    };
+  }
+
+  return {
+    videoEdits: {
+      ...state.videoEdits,
+      [asset.id]: initialVideoEditState(
+        asset.duration,
+        getVideoExportFormatFromMimeType(asset.mimeType),
+      ),
+    },
+  };
+}
 
 export function createMediaAsset(file: File, index: number): WorkspaceAsset {
   const kind = classifyMediaKind(file.type);

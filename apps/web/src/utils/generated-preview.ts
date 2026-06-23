@@ -6,12 +6,14 @@ import type { VideoExportResult } from "./video-export";
 export type GeneratedImagePreview = ImageExportResult & {
   assetId: string;
   fingerprint: string;
+  jobId: string;
   kind: "image";
 };
 
 export type GeneratedVideoPreview = VideoExportResult & {
   assetId: string;
   fingerprint: string;
+  jobId: string;
   kind: "video";
 };
 

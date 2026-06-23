@@ -40,4 +40,57 @@ describe("job store", () => {
     useJobStore.getState().clearJob("job-1");
     expect(useJobStore.getState().jobs["job-1"]).toBeUndefined();
   });
+
+  it("captures submitted background job metadata at launch time", () => {
+    useJobStore.getState().resetJobs();
+
+    useJobStore.getState().queueJob("preview-job-1", "video-preview", "Generating preview", {
+      fingerprint: "asset-1:trim=0-1.5:mp4",
+      inputSnapshot: { exportFormat: "mp4", trimEnd: 1.5, trimStart: 0 },
+      launchId: "launch-1",
+      sourceAssetId: "asset-1",
+      sourceAssetKind: "video",
+      sourceAssetName: "clip.webm",
+      title: "Generate MP4 preview",
+    });
+
+    expect(useJobStore.getState().jobs["preview-job-1"]).toMatchObject({
+      fingerprint: "asset-1:trim=0-1.5:mp4",
+      inputSnapshot: { exportFormat: "mp4", trimEnd: 1.5, trimStart: 0 },
+      launchId: "launch-1",
+      sourceAssetId: "asset-1",
+      sourceAssetKind: "video",
+      sourceAssetName: "clip.webm",
+      status: "queued",
+      title: "Generate MP4 preview",
+      type: "video-preview",
+    });
+  });
+
+  it("attaches generated result metadata when a background job completes", () => {
+    useJobStore.getState().resetJobs();
+
+    useJobStore.getState().queueJob("image-job-1", "image-preview", "Generating image", {
+      fingerprint: "asset-2:webp",
+      sourceAssetId: "asset-2",
+      sourceAssetKind: "image",
+      sourceAssetName: "cover.png",
+      title: "Generate WEBP preview",
+    });
+
+    useJobStore.getState().completeJob("image-job-1", "Image ready", {
+      filename: "cover-edited.webp",
+      resultAssetId: "asset-generated-1",
+    });
+
+    expect(useJobStore.getState().jobs["image-job-1"]).toMatchObject({
+      message: "Image ready",
+      result: {
+        filename: "cover-edited.webp",
+        resultAssetId: "asset-generated-1",
+      },
+      resultAssetId: "asset-generated-1",
+      status: "completed",
+    });
+  });
 });

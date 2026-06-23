@@ -9,11 +9,29 @@ import {
 } from "@obscura/media-core";
 import type { WorkerJob } from "@obscura/shared";
 
+type BackgroundJobLaunchMetadata = Pick<
+  WorkerJob,
+  | "fingerprint"
+  | "inputSnapshot"
+  | "launchId"
+  | "sourceAssetId"
+  | "sourceAssetKind"
+  | "sourceAssetName"
+  | "title"
+>;
+
+type BackgroundJobResult = NonNullable<WorkerJob["result"]>;
+
 type JobStore = {
   jobs: Record<string, WorkerJob>;
-  queueJob: (id: string, type: WorkerJob["type"], message?: string) => void;
+  queueJob: (
+    id: string,
+    type: WorkerJob["type"],
+    message?: string,
+    metadata?: BackgroundJobLaunchMetadata,
+  ) => void;
   updateJob: (id: string, update: WorkerJobProgressUpdate) => void;
-  completeJob: (id: string, message?: string) => void;
+  completeJob: (id: string, message?: string, result?: BackgroundJobResult) => void;
   failJob: (id: string, error: NonNullable<WorkerJob["error"]>) => void;
   cancelJob: (id: string, message?: string) => void;
   clearJob: (id: string) => void;
@@ -22,11 +40,14 @@ type JobStore = {
 
 export const useJobStore = create<JobStore>((set) => ({
   jobs: {},
-  queueJob: (id, type, message) => {
+  queueJob: (id, type, message, metadata) => {
     set((state) => ({
       jobs: {
         ...state.jobs,
-        [id]: createWorkerJob(id, type, message),
+        [id]: {
+          ...createWorkerJob(id, type, message),
+          ...metadata,
+        },
       },
     }));
   },
@@ -46,7 +67,7 @@ export const useJobStore = create<JobStore>((set) => ({
       };
     });
   },
-  completeJob: (id, message) => {
+  completeJob: (id, message, result) => {
     set((state) => {
       const job = state.jobs[id];
 
@@ -57,7 +78,15 @@ export const useJobStore = create<JobStore>((set) => ({
       return {
         jobs: {
           ...state.jobs,
-          [id]: completeWorkerJob(job, message),
+          [id]: {
+            ...completeWorkerJob(job, message),
+            ...(result
+              ? {
+                  result,
+                  ...(result.resultAssetId ? { resultAssetId: result.resultAssetId } : {}),
+                }
+              : {}),
+          },
         },
       };
     });

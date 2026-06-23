@@ -25,6 +25,7 @@ These are frontend/domain objects, not database tables in v1.
 | VideoEditState | Stores trim range, speed, manual subtitle cues, thumbnail metadata, and export options                                           | Local browser session                  |
 | SubtitleCue    | Represents a manually authored subtitle segment with start time, end time, and text                                              | Local browser session                  |
 | ExportJob      | Tracks local processing job status, progress, cancellation, retry, result object URL, and failure reason                         | Local browser session                  |
+| BackgroundJob  | Tracks local generated-preview, encoding/export, and background-removal jobs while the page session is active                    | Local browser session                  |
 | LocalDraft     | Stores recoverable lightweight draft metadata/edit operations when implemented                                                   | Browser storage, if explicitly enabled |
 
 ## Persistence Boundary
@@ -34,7 +35,8 @@ These are frontend/domain objects, not database tables in v1.
 | Uploaded raw media files       | In-memory browser `File` references and object URLs only        | User-selected file references for the active session                                                         | Silent long-term raw media storage in IndexedDB, OPFS, localStorage, or remote services |
 | Media metadata                 | In-memory; optional lightweight browser draft                   | File name, MIME type, dimensions, duration, size, last modified timestamp                                    | Full local filesystem paths or private folder structure                                 |
 | Edit operations                | In-memory; optional lightweight browser draft                   | Crop rectangles, rotation angle, flip flags, adjustment values, annotation objects, subtitle cue timing/text | Embedded raw media bytes unless explicitly approved later                               |
-| Generated previews/results     | In-memory object URLs; user-initiated download                  | Temporary preview blobs and export result blobs                                                              | Automatic cloud upload or hidden persistent archive                                     |
+| Generated previews/results     | In-memory object URLs; optional media-library session asset     | Temporary preview blobs, export result blobs, generated result File objects, generated asset metadata        | Automatic cloud upload, hidden persistent archive, or silent long-term raw media cache  |
+| Background job records         | In-memory runtime state only                                    | Job id, type, status, progress, submitted fingerprint, display source name, result asset id, readable errors | Raw media bytes, local filesystem paths, or persisted job history                       |
 | Background-removal model/cache | Browser asset/model cache where the library/runtime requires it | Model/application assets, not user media                                                                     | Persisted source images or masks beyond documented session behavior                     |
 | Analytics or telemetry         | Not allowed in v1                                               | None                                                                                                         | File names, media content, subtitles, local paths, derived image/video content          |
 
@@ -110,6 +112,7 @@ Any deferred storage option requires updating this document before implementatio
 | Object URL                   | App creates preview/result URL | Asset removed, preview replaced, export result cleared, or page unloads               | Must be revoked deliberately                             |
 | Edit state                   | User applies operations        | User resets asset, removes asset, clears workspace, or draft expires                  | Runtime state; optional lightweight draft only           |
 | Export result blob           | Export completes               | User downloads/clears result or page unloads                                          | Temporary local result only                              |
+| Generated result asset       | Background job completes       | User removes asset, clears workspace, closes session, or browser releases page memory | Session-scoped only in v1                                |
 | Background-removal job state | User starts background removal | Job completes, fails, cancels, or asset clears                                        | Runtime state only                                       |
 | Lightweight draft metadata   | App saves recoverable draft    | User clears draft, draft becomes stale, or feature disabled                           | Must not include raw media bytes unless docs are updated |
 

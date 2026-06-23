@@ -12,6 +12,7 @@ import type { ImageExportSettings } from "../../config/media";
 import type { Copy } from "../../i18n";
 import { getKindLabel } from "../../i18n";
 import { StudioIcon } from "../../icons/studio-icons";
+import { useJobStore } from "../../stores/job-store";
 import { showStudioError, showStudioInfo, showStudioSuccess } from "../studio/studio-toast";
 import type { WorkspaceAsset } from "../../stores/media-store";
 import {
@@ -23,13 +24,12 @@ import type { GeneratedPreview } from "../../utils/generated-preview";
 import { ImagePreviewPane, type PreviewBounds } from "./ImagePreviewPane";
 import { PreviewToolbar } from "./PreviewToolbar";
 import type { PreviewBackground } from "./types";
-import { VideoPreviewWorkbench, type VideoPreviewStatus } from "./VideoPreviewWorkbench";
+import { VideoPreviewWorkbench } from "./VideoPreviewWorkbench";
 
 export function SelectedPreview({
   asset,
   compareOriginal,
   currentPreviewFingerprint,
-  generatedPreview,
   imageExportSettings,
   imagePreviewRequestKey,
   imageState,
@@ -49,7 +49,6 @@ export function SelectedPreview({
   asset: WorkspaceAsset;
   compareOriginal: boolean;
   currentPreviewFingerprint: string | null;
-  generatedPreview: GeneratedPreview | null;
   imageExportSettings: ImageExportSettings | null;
   imagePreviewRequestKey: number;
   imageState: ImageEditState | null;
@@ -73,17 +72,18 @@ export function SelectedPreview({
   const [imagePreviewNotice, setImagePreviewNotice] = useState<ImagePreviewNotice | null>(null);
   const [isVideoLooping, setIsVideoLooping] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const [previewMessage, setPreviewMessage] = useState<string | null>(null);
-  const [previewProgress, setPreviewProgress] = useState(0);
-  const [previewStatus, setPreviewStatus] = useState<VideoPreviewStatus>("idle");
   const [videoDuration, setVideoDuration] = useState(asset.duration ?? 0);
+  const queueJob = useJobStore((state) => state.queueJob);
+  const updateJob = useJobStore((state) => state.updateJob);
+  const failJob = useJobStore((state) => state.failJob);
+  const cancelJob = useJobStore((state) => state.cancelJob);
   const frameRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const imagePreviewRunRef = useRef<symbol | null>(null);
+  const launchSequenceRef = useRef(0);
   const videoPreviewAbortRef = useRef<AbortController | null>(null);
   const lastImagePreviewRequestRef = useRef(imagePreviewRequestKey);
   const lastVideoPreviewRequestRef = useRef(videoPreviewRequestKey);
-  const stalePreviewToastRef = useRef<string | null>(null);
   const dragRef = useRef({
     isDragging: false,
     panX: 0,
@@ -127,17 +127,6 @@ export function SelectedPreview({
     video.playbackRate = videoState.speed;
   }, [videoState?.speed, videoState]);
 
-  const generatedPreviewForAsset = generatedPreview?.assetId === asset.id ? generatedPreview : null;
-  const activeGeneratedPreview =
-    generatedPreviewForAsset && generatedPreviewForAsset.fingerprint === currentPreviewFingerprint
-      ? generatedPreviewForAsset
-      : null;
-  const staleGeneratedPreview =
-    generatedPreviewForAsset && generatedPreviewForAsset.fingerprint !== currentPreviewFingerprint
-      ? generatedPreviewForAsset
-      : null;
-  const activeDerivedVideoPreview =
-    activeGeneratedPreview?.kind === "video" ? activeGeneratedPreview : null;
   const imagePreviewContext =
     asset.kind === "image" && imageExportSettings && currentPreviewFingerprint
       ? {
@@ -145,47 +134,22 @@ export function SelectedPreview({
           fingerprint: currentPreviewFingerprint,
         }
       : null;
-  const activeDerivedImagePreview =
-    activeGeneratedPreview?.kind === "image" ? activeGeneratedPreview : null;
   const activeImagePreviewNotice =
     imagePreviewContext &&
     imagePreviewNotice?.assetId === imagePreviewContext.assetId &&
     imagePreviewNotice.fingerprint === imagePreviewContext.fingerprint
       ? imagePreviewNotice
       : null;
-  const videoSource = activeDerivedVideoPreview?.url ?? asset.objectUrl;
-  const effectiveTrimStart =
-    activeDerivedVideoPreview || !videoState ? 0 : Math.max(0, videoState.trimStart);
-  const effectiveTrimEnd = activeDerivedVideoPreview ? null : videoState?.trimEnd;
-  const activeSubtitleCue =
-    videoState && !activeDerivedVideoPreview
-      ? getActiveSubtitleCue(videoState, currentVideoTime)
-      : null;
+  const videoSource = asset.objectUrl;
+  const effectiveTrimStart = videoState ? Math.max(0, videoState.trimStart) : 0;
+  const effectiveTrimEnd = videoState?.trimEnd;
+  const activeSubtitleCue = videoState ? getActiveSubtitleCue(videoState, currentVideoTime) : null;
   const isImageAsset = asset.kind === "image";
-  const imagePreviewAspectRatio =
-    activeDerivedImagePreview && activeDerivedImagePreview.height > 0
-      ? activeDerivedImagePreview.width / activeDerivedImagePreview.height
-      : undefined;
 
-  useEffect(() => {
-    if (!staleGeneratedPreview) {
-      stalePreviewToastRef.current = null;
-      return;
-    }
-
-    if (!currentPreviewFingerprint || previewStatus === "busy") {
-      return;
-    }
-
-    const toastKey = `${asset.id}:${staleGeneratedPreview.fingerprint}:${currentPreviewFingerprint}`;
-
-    if (stalePreviewToastRef.current === toastKey) {
-      return;
-    }
-
-    stalePreviewToastRef.current = toastKey;
-    showStudioInfo(t.previewStale);
-  }, [asset.id, currentPreviewFingerprint, previewStatus, staleGeneratedPreview, t.previewStale]);
+  function getNextLaunchId(jobId: string) {
+    launchSequenceRef.current += 1;
+    return `${jobId}:${launchSequenceRef.current}`;
+  }
 
   const handleGenerateImagePreview = useCallback(async () => {
     if (
@@ -198,11 +162,30 @@ export function SelectedPreview({
     }
 
     const runId = Symbol("image-preview");
+    const jobId = getNextLaunchId(getPreviewJobId("image", asset.id));
     const previewContext = {
       assetId: asset.id,
       fingerprint: currentPreviewFingerprint,
+      jobId,
     };
     imagePreviewRunRef.current = runId;
+    queueJob(jobId, "image-preview", t.generatingImagePreview, {
+      fingerprint: currentPreviewFingerprint,
+      inputSnapshot: {
+        format: imageExportSettings.format,
+        quality: imageExportSettings.quality,
+      },
+      launchId: jobId,
+      sourceAssetId: asset.id,
+      sourceAssetKind: "image",
+      sourceAssetName: asset.name,
+      title: getFormatTaskTitle(t.imageFormatPreviewTask, imageExportSettings.format),
+    });
+    updateJob(jobId, {
+      message: t.generatingImagePreview,
+      progress: 8,
+      status: "processing",
+    });
     setImagePreviewNotice({
       ...previewContext,
       message: t.generatingImagePreview,
@@ -236,6 +219,11 @@ export function SelectedPreview({
       }
 
       const errorMessage = getImageExportErrorMessage(error, t);
+      failJob(jobId, {
+        code: "image-preview-failed",
+        message: errorMessage,
+        recoverable: true,
+      });
       setImagePreviewNotice({
         ...previewContext,
         message: errorMessage,
@@ -247,7 +235,17 @@ export function SelectedPreview({
         imagePreviewRunRef.current = null;
       }
     }
-  }, [asset, currentPreviewFingerprint, imageExportSettings, imageState, onGeneratedPreview, t]);
+  }, [
+    asset,
+    currentPreviewFingerprint,
+    failJob,
+    imageExportSettings,
+    imageState,
+    onGeneratedPreview,
+    queueJob,
+    t,
+    updateJob,
+  ]);
 
   const handleGenerateVideoPreview = useCallback(async () => {
     if (asset.kind !== "video" || !videoState || !currentPreviewFingerprint) {
@@ -255,18 +253,30 @@ export function SelectedPreview({
     }
 
     const previewFingerprint = currentPreviewFingerprint;
+    const jobId = getNextLaunchId(getPreviewJobId("video", asset.id));
     videoPreviewAbortRef.current?.abort();
     const controller = new AbortController();
     videoPreviewAbortRef.current = controller;
-    setPreviewStatus("busy");
-    setPreviewMessage(t.generatingVideoPreview);
-    setPreviewProgress(0);
+    queueJob(jobId, "video-preview", t.generatingVideoPreview, {
+      fingerprint: previewFingerprint,
+      inputSnapshot: {
+        exportFormat: videoState.exportFormat,
+        speed: videoState.speed,
+        subtitleCount: videoState.subtitles.length,
+        trimEnd: videoState.trimEnd,
+        trimStart: videoState.trimStart,
+      },
+      launchId: jobId,
+      sourceAssetId: asset.id,
+      sourceAssetKind: "video",
+      sourceAssetName: asset.name,
+      title: getFormatTaskTitle(t.videoFormatPreviewTask, videoState.exportFormat),
+    });
 
     try {
       const result = await exportEditedVideo({
         onProgress: (update) => {
-          setPreviewProgress(Math.round(update.progress ?? 0));
-          setPreviewMessage(update.message ?? t.generatingVideoPreview);
+          updateJob(jobId, update);
         },
         signal: controller.signal,
         source: asset.file,
@@ -281,11 +291,9 @@ export function SelectedPreview({
         ...result,
         assetId: asset.id,
         fingerprint: previewFingerprint,
+        jobId,
         kind: "video",
       });
-      setPreviewStatus("ready");
-      setPreviewMessage(null);
-      setPreviewProgress(100);
       setCurrentVideoTime(0);
       showStudioSuccess(t.videoPreviewReady);
     } catch (error) {
@@ -294,22 +302,34 @@ export function SelectedPreview({
       }
 
       if (isAbortError(error)) {
-        setPreviewStatus("canceled");
-        setPreviewMessage(null);
+        cancelJob(jobId, t.videoPreviewCanceled);
         showStudioInfo(t.videoPreviewCanceled);
         return;
       }
 
       const errorMessage = getVideoExportErrorMessage(error, t.videoPreviewFailed);
-      setPreviewStatus("failed");
-      setPreviewMessage(null);
+      failJob(jobId, {
+        code: "video-preview-failed",
+        message: errorMessage,
+        recoverable: true,
+      });
       showStudioError(errorMessage);
     } finally {
       if (videoPreviewAbortRef.current === controller) {
         videoPreviewAbortRef.current = null;
       }
     }
-  }, [asset, currentPreviewFingerprint, onGeneratedPreview, t, videoState]);
+  }, [
+    asset,
+    cancelJob,
+    currentPreviewFingerprint,
+    failJob,
+    onGeneratedPreview,
+    queueJob,
+    t,
+    updateJob,
+    videoState,
+  ]);
 
   useEffect(() => {
     if (imagePreviewRequestKey === lastImagePreviewRequestRef.current) {
@@ -334,10 +354,6 @@ export function SelectedPreview({
       queueMicrotask(() => void handleGenerateVideoPreview());
     }
   }, [handleGenerateVideoPreview, videoPreviewRequestKey]);
-
-  function handleCancelVideoPreview() {
-    videoPreviewAbortRef.current?.abort();
-  }
 
   function handlePlayToggle() {
     const video = videoRef.current;
@@ -472,9 +488,7 @@ export function SelectedPreview({
               compareOriginal={compareOriginal}
               imageState={imageState}
               onApplyImageAction={onApplyImageAction}
-              previewAspectRatio={imagePreviewAspectRatio}
               previewBounds={previewBounds}
-              previewSourceUrl={activeDerivedImagePreview?.url}
               t={t}
             />
           </div>
@@ -541,18 +555,12 @@ export function SelectedPreview({
             asset={asset}
             currentTime={currentVideoTime}
             duration={videoDuration || asset.duration || 0}
-            isDerivedPreview={Boolean(activeDerivedVideoPreview)}
             isLooping={isVideoLooping}
             isPlaying={isVideoPlaying}
-            onCancelPreview={handleCancelVideoPreview}
-            onGeneratePreview={() => void handleGenerateVideoPreview()}
             onLoopToggle={() => setIsVideoLooping((value) => !value)}
             onPlayToggle={handlePlayToggle}
             onResetTime={handleResetVideoTime}
             onScrub={handleVideoScrub}
-            previewMessage={previewMessage}
-            previewProgress={previewProgress}
-            previewStatus={previewStatus}
             t={t}
             videoState={videoState}
           />
@@ -682,4 +690,12 @@ function isPreviewControl(target: EventTarget | null) {
       ),
     )
   );
+}
+
+function getPreviewJobId(kind: "image" | "video", assetId: string) {
+  return `${kind}-preview:${assetId}`;
+}
+
+function getFormatTaskTitle(template: string, format: string) {
+  return template.replace("{format}", format.toUpperCase());
 }

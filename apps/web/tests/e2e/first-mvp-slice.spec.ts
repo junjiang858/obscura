@@ -166,7 +166,9 @@ test("edits and exports a short video with timeline evidence and no media upload
 
   await expect(page.getByRole("button", { name: /local-video\.webm/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /^edit$/i })).toBeVisible();
-  await expect(page.getByText(/source preview/i)).toBeVisible();
+  await expect(page.locator(".video-workbench-badges")).toContainText("WEBM");
+  await expect(page.locator(".video-preview")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(page.getByText(/source preview/i)).toHaveCount(0);
 
   await expect(page.locator('[data-testid="video-thumbnail-frame"]').first()).toBeVisible();
   expect(
@@ -204,7 +206,10 @@ test("edits and exports a short video with timeline evidence and no media upload
     .click();
 
   await expect(page.getByText(/preview ready/i)).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText(/derived preview/i)).toBeVisible();
+  await expect(page.locator(".video-workbench-badges")).toContainText("WEBM");
+  await expect(page.getByText(/source preview/i)).toHaveCount(0);
+  await expect(page.getByText(/derived preview/i)).toHaveCount(0);
+  await expect(page.getByText(/generated/i)).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /export current asset/i }).click();

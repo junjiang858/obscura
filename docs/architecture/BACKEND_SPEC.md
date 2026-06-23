@@ -7,7 +7,7 @@
 - Database decision confirmed: Yes, `docs/architecture/DATABASE_DESIGN.md` states v1 has no server database.
 - User approved writing this document: Yes, selected accelerated path B in chat on 2026-06-22.
 - Last reviewed: 2026-06-23.
-- Current local worker update: Approved by user on 2026-06-23 as A path. This pass keeps processing local and extends editor-owned format settings without adding a backend.
+- Current local worker update: Approved by user on 2026-06-23. This pass keeps processing local and adds a runtime background-job layer for generated previews, encoding/export, and background removal without adding a backend.
 
 ## Decision Summary
 
@@ -21,6 +21,8 @@ The app still has backend-like processing boundaries inside the browser: ffmpeg.
 - Validate local media metadata, edit settings, export settings, subtitle cues, and Worker messages.
 - Run heavy media processing through Web Workers where feasible.
 - Expose progress, cancellation when feasible, retry, and readable errors for long-running jobs.
+- Keep submitted generated-preview, encoding/export, and background-removal jobs alive when the user switches media, using the submitted input snapshot rather than current UI state.
+- Insert completed generated results into the media library as new local session assets when a job produces a blob/file.
 - Prevent UI code from directly owning ffmpeg/background-removal lifecycle complexity.
 - Document and reject any future backend/API/cloud-processing change before implementation.
 
@@ -47,6 +49,9 @@ The app still has backend-like processing boundaries inside the browser: ffmpeg.
 | Subtitle cues must have valid timing and text                         | Subtitle cue validation                                                     | Show cue-level error and prevent export                                 |
 | Derived video preview must preserve the source file                   | Video apply/export workflow                                                 | Add or preview a generated local blob without mutating the original     |
 | Long-running jobs must expose status                                  | Worker job orchestration                                                    | Show loading/progress, cancellation if feasible, retry/reset on failure |
+| Background jobs must capture submitted state                          | Job store and Worker-facing API launchers                                   | Use asset id, input snapshot, and fingerprint from launch time          |
+| Switching media must not cancel submitted generated/encoding jobs     | App composition and job store                                               | Keep job running unless user cancels or source asset is removed         |
+| Completed generated results become new local assets                   | Job completion handler and media store                                      | Insert result after source asset and mark it as generated/session-local |
 | Raw media persistence is forbidden unless docs change                 | Data/storage boundary and security tests                                    | Block persistence path and update source docs before any change         |
 
 ## API Contracts
@@ -73,18 +78,38 @@ These are internal browser contracts, not network APIs.
 | `runVideoExport`                | source video or matching derived preview, VideoEditState, subtitle cues, export settings | output blob and suggested filename                                | ffmpeg load failed, unsupported codec/container, invalid range, canceled, memory limit                              |
 | `serializeWebVTT`               | subtitle cue list                                                                        | WebVTT text/blob                                                  | invalid cue timing, empty cue text where required                                                                   |
 
+### Local Background Job Contract
+
+`BackgroundJob` is a browser runtime contract layered on top of Worker-facing operations. It is not a backend queue and is not persisted as a database record.
+
+| Field                         | Purpose                                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `id`                          | Local job id used for progress, cancellation, retry, and UI list actions                             |
+| `type`                        | Metadata, thumbnail, image-preview, image-export, background-removal, video-preview, or video-export |
+| `sourceAssetId`               | Asset that launched the job                                                                          |
+| `sourceAssetName`             | Display-only source name; do not include local filesystem paths                                      |
+| `sourceAssetKind`             | Image or video for icon and status grouping                                                          |
+| `title`                       | Localized short label such as Generate preview, Remove background, or Export MP4                     |
+| `fingerprint`                 | Submitted edit/export fingerprint used to detect whether a generated result matches current settings |
+| `inputSnapshot`               | Minimal submitted settings required for retry; must not contain raw media bytes                      |
+| `status`, `progress`, `error` | Existing WorkerJob lifecycle state                                                                   |
+| `resultAssetId`               | Media library asset id created from the generated result, when applicable                            |
+
+Job launchers must use values captured at submit time. They must not read mutable selected-asset state after the job has started.
+
 ## Data Flow
 
-| Flow                  | Reads                                                                                           | Writes                                                                            | Notes                                                                                                                                                                                                    |
-| --------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Media import          | Browser-selected `File` objects                                                                 | In-memory MediaAsset list and object URLs                                         | No remote upload. Object URLs must be revoked.                                                                                                                                                           |
-| Image editing         | MediaAsset and ImageEditState                                                                   | In-memory ImageEditState, layer state, crop rectangle, and preview render         | Use operation state, not destructive mutation of the original file.                                                                                                                                      |
-| Image format export   | Selected image, edit state, format registry                                                     | Temporary generated blob/object URL, preview fingerprint, and user download       | Browser-native formats are feature-detected; GIF/TIFF/BMP use local encoders. Matching generated previews may be reused only while their fingerprint equals the current edit/export settings.            |
-| Background removal    | Selected image and job settings                                                                 | Runtime job state and generated result blob/object URL                            | Model assets may load from app/CDN path; user image remains local.                                                                                                                                       |
-| Video editing         | MediaAsset and VideoEditState                                                                   | In-memory VideoEditState, thumbnail metadata, subtitle cues, derived preview blob | Single-asset only; no multi-track timeline in v1.                                                                                                                                                        |
-| Video derived preview | Source video, trim/speed/format/subtitle settings                                               | Temporary local derived blob/object URL, fingerprint, and optional library asset  | Original source remains untouched; derived URLs must be revoked. MP4/WebM are preferred for in-browser preview; MOV/MKV/AVI may still be valid download targets even if the browser cannot preview them. |
-| Export                | Selected asset, matching derived preview when present, edit state, editor-owned export settings | Runtime ExportJob and user-downloaded blob                                        | Export result is temporary unless user downloads it. The export panel must not own duplicated format settings, and it must ignore stale generated previews whose fingerprint no longer matches.          |
-| Draft recovery        | Lightweight edit metadata                                                                       | Browser storage draft metadata when implemented                                   | Raw media bytes are not silently persisted.                                                                                                                                                              |
+| Flow                  | Reads                                                                                           | Writes                                                                            | Notes                                                                                                                                                                                           |
+| --------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Media import          | Browser-selected `File` objects                                                                 | In-memory MediaAsset list and object URLs                                         | No remote upload. Object URLs must be revoked.                                                                                                                                                  |
+| Image editing         | MediaAsset and ImageEditState                                                                   | In-memory ImageEditState, layer state, crop rectangle, and preview render         | Use operation state, not destructive mutation of the original file.                                                                                                                             |
+| Image format export   | Selected image, edit state, format registry                                                     | Temporary generated blob/object URL, preview fingerprint, and user download       | Browser-native formats are feature-detected; GIF/TIFF/BMP use local encoders. Matching generated previews may be reused only while their fingerprint equals the current edit/export settings.   |
+| Background removal    | Selected image and job settings                                                                 | Runtime job state and generated result blob/object URL                            | Model assets may load from app/CDN path; user image remains local.                                                                                                                              |
+| Video editing         | MediaAsset and VideoEditState                                                                   | In-memory VideoEditState, thumbnail metadata, subtitle cues, derived preview blob | Single-asset only; no multi-track timeline in v1.                                                                                                                                               |
+| Background job launch | Source asset, submitted edit/export settings, fingerprint, and localized job label              | Runtime BackgroundJob and task-launch UI marker                                   | Switching media or editing the source after launch does not mutate the submitted job.                                                                                                           |
+| Video derived preview | Source video, trim/speed/format/subtitle settings                                               | Temporary local derived blob/object URL, fingerprint, and optional library asset  | Original source remains untouched; derived URLs must be revoked. Completed generated results may be inserted into the media library as new session assets.                                      |
+| Export                | Selected asset, matching derived preview when present, edit state, editor-owned export settings | Runtime ExportJob and user-downloaded blob                                        | Export result is temporary unless user downloads it. The export panel must not own duplicated format settings, and it must ignore stale generated previews whose fingerprint no longer matches. |
+| Draft recovery        | Lightweight edit metadata                                                                       | Browser storage draft metadata when implemented                                   | Raw media bytes are not silently persisted.                                                                                                                                                     |
 
 ## Auth And Permissions
 

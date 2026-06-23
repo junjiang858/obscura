@@ -10,7 +10,9 @@ import { getVideoExportFormatFromMimeType, type ImageExportSettings } from "../.
 import type { Copy } from "../../i18n";
 import { StudioIcon, type StudioIconName } from "../../icons/studio-icons";
 import type { WorkspaceAsset } from "../../stores/media-store";
+import type { ImageExportResult } from "../../utils/image-export";
 import type { GeneratedPreview } from "../../utils/generated-preview";
+import type { VideoExportResult } from "../../utils/video-export";
 import type { VideoThumbnail } from "../../utils/video-thumbnails";
 import { ExportPanel } from "../export/ExportPanel";
 import { PanelHeader } from "../studio/PanelHeader";
@@ -27,6 +29,7 @@ export function EditorRail({
   onApplyImageAction,
   onApplyVideoAction,
   onGenerateImagePreview,
+  onGeneratedExportResult,
   onImageExportSettingsChange,
   onGenerateVideoPreview,
   onRemoveBackground,
@@ -44,6 +47,11 @@ export function EditorRail({
   onApplyImageAction: (action: ImageEditAction) => void;
   onApplyVideoAction: (action: VideoEditAction) => void;
   onGenerateImagePreview: () => void;
+  onGeneratedExportResult: (payload: {
+    jobId: string;
+    result: ImageExportResult | VideoExportResult;
+    sourceAssetId: string;
+  }) => WorkspaceAsset;
   onImageExportSettingsChange: (patch: Partial<ImageExportSettings>) => void;
   onGenerateVideoPreview: () => void;
   onRemoveBackground: () => void;
@@ -145,6 +153,7 @@ export function EditorRail({
           imageExportSettings={imageExportSettings}
           imageState={imageState}
           selectedAsset={selectedAsset}
+          onGeneratedResult={onGeneratedExportResult}
           t={t}
           videoState={videoState}
         />

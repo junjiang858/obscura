@@ -1,14 +1,17 @@
 import type { ImageEditAction } from "@obscura/media-core";
+import type { WorkerJob } from "@obscura/shared";
 import type { Copy, Language } from "../../i18n";
 import { StudioIcon } from "../../icons/studio-icons";
 import type { WorkspaceAsset } from "../../stores/media-store";
 import { BrandMarkCanvas } from "./BrandMarkCanvas";
+import { ProcessingCenter } from "./ProcessingCenter";
 
 export function TopToolbar({
   canEditSelectedImage,
   onApplyImageAction,
   onLanguageChange,
   onSelectAdjacent,
+  processingJobs,
   selectedAsset,
   t,
   totalAssets,
@@ -19,6 +22,7 @@ export function TopToolbar({
   onApplyImageAction: (action: ImageEditAction) => void;
   onLanguageChange: (language: Language) => void;
   onSelectAdjacent: (direction: 1 | -1) => void;
+  processingJobs: WorkerJob[];
   selectedAsset: WorkspaceAsset | null;
   t: Copy;
   totalAssets: number;
@@ -86,6 +90,7 @@ export function TopToolbar({
       </div>
 
       <div className="top-settings">
+        <ProcessingCenter jobs={processingJobs} t={t} />
         <label className="language-control">
           <StudioIcon name="language" size={18} />
           <select
