@@ -22,8 +22,8 @@ test("edits and downloads an image without external media upload requests", asyn
   });
 
   await page.goto("/");
-  await expect(page.getByText(/magicmedia/i)).toBeVisible();
-  await expect(page.getByText(/local only/i)).toBeVisible();
+  await expect(page.getByText(/obscura/i)).toBeVisible();
+  await expect(page.getByText(/local & private/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /^upload$/i })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /add media/i })).toHaveCount(1);
   await expect(page.getByRole("heading", { name: /start your creation/i })).toBeVisible();
@@ -45,7 +45,7 @@ test("edits and downloads an image without external media upload requests", asyn
   await page.getByRole("button", { name: /rotate 90/i }).click();
   await page.getByRole("button", { name: /flip horizontal/i }).click();
   await page.getByLabel(/output width/i).fill("512");
-  await page.getByRole("tab", { name: /adjustments/i }).click();
+  await page.getByRole("tab", { name: /beautify/i }).click();
   await page.getByLabel(/brightness/i).fill("14");
   await page.getByRole("tab", { name: /layers/i }).click();
   await page.getByLabel(/watermark text/i).fill("Draft");

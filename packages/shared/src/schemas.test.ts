@@ -45,14 +45,22 @@ describe("shared media schemas", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects export settings with unsupported formats or invalid quality", () => {
+  it("accepts approved rich export formats and rejects invalid quality", () => {
     expect(
       exportSettingsSchema.safeParse({
         kind: "image",
         format: "gif",
         quality: 80,
       }).success,
-    ).toBe(false);
+    ).toBe(true);
+
+    expect(
+      exportSettingsSchema.safeParse({
+        kind: "video",
+        format: "avi",
+        quality: 80,
+      }).success,
+    ).toBe(true);
 
     expect(
       exportSettingsSchema.safeParse({

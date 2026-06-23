@@ -30,8 +30,16 @@ export const subtitleCueSchema = z
     path: ["endTime"],
   });
 
-export const imageExportFormatSchema = z.enum(["png", "jpeg", "webp"]);
-export const videoExportFormatSchema = z.enum(["mp4", "webm"]);
+export const imageExportFormatSchema = z.enum([
+  "png",
+  "jpeg",
+  "webp",
+  "avif",
+  "bmp",
+  "gif",
+  "tiff",
+]);
+export const videoExportFormatSchema = z.enum(["mp4", "webm", "mov", "mkv", "avi"]);
 
 export const exportSettingsSchema = z.discriminatedUnion("kind", [
   z.object({
