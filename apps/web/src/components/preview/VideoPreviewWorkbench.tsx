@@ -116,14 +116,9 @@ export function VideoPreviewWorkbench({
         ) : null}
       </div>
 
-      {previewMessage ? (
+      {previewStatus === "busy" && previewMessage ? (
         <div className={`job-message ${previewStatus}`}>
-          <StudioIcon
-            name={
-              previewStatus === "failed" || previewStatus === "stale" ? "warning" : "checkCircle"
-            }
-            size={17}
-          />
+          <StudioIcon name="checkCircle" size={17} />
           <span>{previewMessage}</span>
         </div>
       ) : null}

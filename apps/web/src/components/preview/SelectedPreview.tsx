@@ -302,7 +302,7 @@ export function SelectedPreview({
 
       const errorMessage = getVideoExportErrorMessage(error, t.videoPreviewFailed);
       setPreviewStatus("failed");
-      setPreviewMessage(errorMessage);
+      setPreviewMessage(null);
       showStudioError(errorMessage);
     } finally {
       if (videoPreviewAbortRef.current === controller) {

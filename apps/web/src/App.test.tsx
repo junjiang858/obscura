@@ -436,7 +436,8 @@ describe("media workspace shell", () => {
 
     await user.click(screen.getByRole("button", { name: /^generate preview$/i }));
 
-    expect(await screen.findByText(/unsupported codec/i)).toBeInTheDocument();
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith("Unsupported codec"));
+    expect(screen.queryByText(/unsupported codec/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry preview/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /retry preview/i }));
