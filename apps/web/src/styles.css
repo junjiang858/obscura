@@ -938,7 +938,7 @@ svg {
 }
 
 .preview-frame.is-video-preview {
-  padding-bottom: 150px;
+  padding: 0;
   cursor: default;
   touch-action: auto;
 }
@@ -1065,7 +1065,7 @@ svg {
   width: min(100%, 780px);
   max-width: 100%;
   max-height: 100%;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1092,7 +1092,15 @@ svg {
   aspect-ratio: 16 / 9;
 }
 
-.image-preview-crop img {
+.image-preview-surface {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.image-preview-surface img {
   display: block;
   width: 100%;
   height: 100%;
@@ -1103,7 +1111,7 @@ svg {
     filter 180ms ease;
 }
 
-.image-preview-crop.crop-free img {
+.image-preview-crop.crop-free .image-preview-surface img {
   object-fit: contain;
 }
 
@@ -1145,7 +1153,7 @@ svg {
   position: absolute;
   inset: 0;
   z-index: 2;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -1185,11 +1193,27 @@ svg {
 }
 
 .video-preview {
-  width: min(100%, 900px);
-  max-height: min(58vh, calc(100% - 18px));
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   pointer-events: auto;
   border-radius: var(--radius);
   background: #0f141b;
+}
+
+.video-canvas-layer {
+  position: absolute;
+  display: block;
+  inset: 18px 34px 150px;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .video-workbench {
@@ -1954,6 +1978,21 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   color: #ffc3c8;
 }
 
+.preview-job-message {
+  position: absolute;
+  right: 24px;
+  bottom: 74px;
+  left: 24px;
+  z-index: 3;
+  justify-content: center;
+  width: fit-content;
+  max-width: calc(100% - 48px);
+  margin: 0 auto;
+  pointer-events: none;
+  background: rgba(10, 14, 21, 0.82);
+  backdrop-filter: blur(16px);
+}
+
 .job-progress {
   height: 7px;
   overflow: hidden;
@@ -2076,7 +2115,11 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   }
 
   .preview-frame.is-video-preview {
-    padding-bottom: 186px;
+    padding: 0;
+  }
+
+  .video-canvas-layer {
+    inset: 14px 14px 206px;
   }
 
   .preview-edge-button {

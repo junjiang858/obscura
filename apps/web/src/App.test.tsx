@@ -224,6 +224,8 @@ describe("media workspace shell", () => {
     await user.clear(screen.getByLabelText(/quality/i));
     await user.type(screen.getByLabelText(/quality/i), "70");
     expect(screen.queryByLabelText(/^format$/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /generate format preview/i }));
+    expect(await screen.findByText(/image preview ready/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /export current asset/i }));
 
     expect(await screen.findByText(/export saved/i)).toBeInTheDocument();

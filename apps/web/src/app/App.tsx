@@ -30,6 +30,7 @@ export default function App() {
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>("preview");
   const [compareOriginal, setCompareOriginal] = useState(false);
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
+  const [imagePreviewRequestKey, setImagePreviewRequestKey] = useState(0);
   const [previewBackground, setPreviewBackground] = useState<PreviewBackground>("transparent");
   const [videoPreviewRequestKey, setVideoPreviewRequestKey] = useState(0);
   const [zoom, setZoom] = useState(100);
@@ -219,6 +220,8 @@ export default function App() {
 
         <PreviewStage
           compareOriginal={showCompareOriginal}
+          imageExportSettings={selectedImageExportSettings}
+          imagePreviewRequestKey={imagePreviewRequestKey}
           imageState={selectedImageState}
           isFullscreen={isPreviewFullscreen}
           isVisible={currentMobileTab === "preview"}
@@ -249,6 +252,7 @@ export default function App() {
                 updateImageExportSettings(selectedAsset.id, patch);
               }
             }}
+            onGenerateImagePreview={() => setImagePreviewRequestKey((key) => key + 1)}
             onGenerateVideoPreview={() => setVideoPreviewRequestKey((key) => key + 1)}
             onRemoveBackground={() => void handleRemoveBackground()}
             selectedAsset={selectedAsset}

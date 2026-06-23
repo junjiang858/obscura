@@ -19,17 +19,21 @@ export function ImagePreviewPane({
   compareOriginal,
   imageState,
   onApplyImageAction,
+  previewAspectRatio,
   previewBounds,
+  previewSourceUrl,
   t,
 }: {
   asset: WorkspaceAsset;
   compareOriginal: boolean;
   imageState: ImageEditState | null;
   onApplyImageAction: (action: ImageEditAction) => void;
+  previewAspectRatio?: number | undefined;
   previewBounds: PreviewBounds | null;
+  previewSourceUrl?: string | undefined;
   t: Copy;
 }) {
-  const activeAspect = imageState?.cropAspect ?? "free";
+  const activeAspect = previewSourceUrl ? "free" : (imageState?.cropAspect ?? "free");
   const compareBounds = getCompareBounds(previewBounds);
   const editedPane = (
     <figure className="image-preview-pane">
@@ -38,9 +42,11 @@ export function ImagePreviewPane({
         alt={`${t.previewOf} ${asset.name}`}
         asset={asset}
         bounds={previewBounds}
-        imageState={imageState}
-        interactive={Boolean(imageState)}
+        imageState={previewSourceUrl ? null : imageState}
+        interactive={Boolean(imageState) && !previewSourceUrl}
         onApplyImageAction={onApplyImageAction}
+        sourceAspectRatio={previewAspectRatio}
+        sourceUrl={previewSourceUrl}
       />
     </figure>
   );
@@ -70,9 +76,11 @@ export function ImagePreviewPane({
           alt=""
           asset={asset}
           bounds={compareBounds}
-          imageState={imageState}
+          imageState={previewSourceUrl ? null : imageState}
           interactive={false}
           onApplyImageAction={onApplyImageAction}
+          sourceAspectRatio={previewAspectRatio}
+          sourceUrl={previewSourceUrl}
         />
       </figure>
     </div>
@@ -87,6 +95,8 @@ function ImagePreviewFrame({
   imageState,
   interactive,
   onApplyImageAction,
+  sourceAspectRatio,
+  sourceUrl,
 }: {
   activeAspect: ImageCropAspect;
   alt: string;
@@ -95,6 +105,8 @@ function ImagePreviewFrame({
   imageState: ImageEditState | null;
   interactive: boolean;
   onApplyImageAction: (action: ImageEditAction) => void;
+  sourceAspectRatio?: number | undefined;
+  sourceUrl?: string | undefined;
 }) {
   const cropRef = useRef<HTMLDivElement>(null);
   const [layerSize, setLayerSize] = useState<PreviewBounds>({ height: 0, width: 0 });
@@ -136,9 +148,15 @@ function ImagePreviewFrame({
     <div
       ref={cropRef}
       className={`image-preview-crop crop-${activeAspect}`}
-      style={getPreviewFrameStyle(asset, activeAspect, bounds)}
+      style={getPreviewFrameStyle(asset, activeAspect, bounds, sourceAspectRatio)}
     >
-      <img alt={alt} src={asset.objectUrl} style={getImagePreviewStyle(imageState)} />
+      <div className="image-preview-surface">
+        <img
+          alt={alt}
+          src={sourceUrl ?? asset.objectUrl}
+          style={getImagePreviewStyle(imageState)}
+        />
+      </div>
       {imageState ? (
         <ImageLayerCanvas
           imageState={imageState}
@@ -155,8 +173,9 @@ function getPreviewFrameStyle(
   asset: WorkspaceAsset,
   aspect: ImageCropAspect,
   bounds: PreviewBounds | null,
+  sourceAspectRatio?: number,
 ): CSSProperties {
-  const ratio = getAspectRatio(asset, aspect);
+  const ratio = sourceAspectRatio ?? getAspectRatio(asset, aspect);
 
   if (!bounds?.width || !bounds.height) {
     return { aspectRatio: `${ratio}` };

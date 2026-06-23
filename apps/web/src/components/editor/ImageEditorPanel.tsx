@@ -36,6 +36,7 @@ export function ImageEditorPanel({
   imageState,
   onApply,
   onExportSettingsChange,
+  onGeneratePreview,
   onRemoveBackground,
   t,
 }: {
@@ -45,6 +46,7 @@ export function ImageEditorPanel({
   imageState: ImageEditState;
   onApply: (action: ImageEditAction) => void;
   onExportSettingsChange: (patch: Partial<ImageExportSettings>) => void;
+  onGeneratePreview: () => void;
   onRemoveBackground: () => void;
   t: Copy;
 }) {
@@ -167,6 +169,10 @@ export function ImageEditorPanel({
           >
             <StudioIcon name="restartAlt" size={18} />
             <span>{t.resetTransform}</span>
+          </button>
+          <button className="secondary-button full-width" onClick={onGeneratePreview} type="button">
+            <StudioIcon name="checkCircle" size={17} />
+            <span>{t.previewCropResult}</span>
           </button>
         </div>
       ) : null}
@@ -383,6 +389,15 @@ export function ImageEditorPanel({
                 ? t.imageQualityHelper
                 : t.imageFormatHelper)}
           </p>
+          <button
+            className="secondary-button full-width"
+            disabled={activeImageAvailability ? !activeImageAvailability.available : false}
+            onClick={onGeneratePreview}
+            type="button"
+          >
+            <StudioIcon name="checkCircle" size={17} />
+            <span>{t.generateImageFormatPreview}</span>
+          </button>
         </div>
       ) : null}
 

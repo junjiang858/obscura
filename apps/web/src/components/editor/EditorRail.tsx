@@ -22,6 +22,7 @@ export function EditorRail({
   isVisible,
   onApplyImageAction,
   onApplyVideoAction,
+  onGenerateImagePreview,
   onImageExportSettingsChange,
   onGenerateVideoPreview,
   onRemoveBackground,
@@ -35,6 +36,7 @@ export function EditorRail({
   isVisible: boolean;
   onApplyImageAction: (action: ImageEditAction) => void;
   onApplyVideoAction: (action: VideoEditAction) => void;
+  onGenerateImagePreview: () => void;
   onImageExportSettingsChange: (patch: Partial<ImageExportSettings>) => void;
   onGenerateVideoPreview: () => void;
   onRemoveBackground: () => void;
@@ -107,6 +109,7 @@ export function EditorRail({
             imageState={imageState}
             onApply={onApplyImageAction}
             onExportSettingsChange={onImageExportSettingsChange}
+            onGeneratePreview={onGenerateImagePreview}
             onRemoveBackground={onRemoveBackground}
             t={t}
           />

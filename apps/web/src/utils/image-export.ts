@@ -17,9 +17,11 @@ import type { WorkspaceAsset } from "../stores/media-store";
 
 export type ImageExportResult = {
   blob: Blob;
-  url: string;
   filename: string;
+  height: number;
   size: number;
+  url: string;
+  width: number;
 };
 
 export type ImageExportAvailability = {
@@ -127,9 +129,11 @@ export async function exportEditedImage({
 
   return {
     blob,
-    url: URL.createObjectURL(blob),
     filename: plan.suggestedFilename,
+    height: canvas.height,
     size: blob.size,
+    url: URL.createObjectURL(blob),
+    width: canvas.width,
   };
 }
 

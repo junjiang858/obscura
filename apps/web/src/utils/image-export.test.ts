@@ -83,6 +83,8 @@ describe("image export helpers", () => {
 
     expect(result.blob.type).toBe(mimeType);
     expect(result.filename).toBe(filename);
+    expect(result.width).toBe(2);
+    expect(result.height).toBe(2);
     expect(result.size).toBeGreaterThan(0);
   });
 

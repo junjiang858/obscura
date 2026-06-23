@@ -3,6 +3,7 @@ import type {
   ImageEditState,
   VideoEditState,
 } from "@local-media-studio/media-core";
+import type { ImageExportSettings } from "../../config/media";
 import type { Copy } from "../../i18n";
 import type { WorkspaceAsset } from "../../stores/media-store";
 import { EmptyPreview } from "./EmptyPreview";
@@ -11,6 +12,8 @@ import type { PreviewBackground } from "./types";
 
 export function PreviewStage({
   compareOriginal,
+  imageExportSettings,
+  imagePreviewRequestKey,
   imageState,
   isFullscreen,
   isVisible,
@@ -28,6 +31,8 @@ export function PreviewStage({
   zoom,
 }: {
   compareOriginal: boolean;
+  imageExportSettings: ImageExportSettings | null;
+  imagePreviewRequestKey: number;
   imageState: ImageEditState | null;
   isFullscreen: boolean;
   isVisible: boolean;
@@ -52,6 +57,8 @@ export function PreviewStage({
         <SelectedPreview
           asset={selectedAsset}
           compareOriginal={compareOriginal}
+          imageExportSettings={imageExportSettings}
+          imagePreviewRequestKey={imagePreviewRequestKey}
           imageState={imageState}
           isFullscreen={isFullscreen}
           key={`${selectedAsset.id}-${imageState?.cropAspect ?? "video"}-${compareOriginal ? "compare" : "single"}`}

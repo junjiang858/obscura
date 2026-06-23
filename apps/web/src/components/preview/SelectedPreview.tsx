@@ -16,10 +16,16 @@ import type {
   ImageEditState,
   VideoEditState,
 } from "@local-media-studio/media-core";
+import type { ImageExportSettings } from "../../config/media";
 import type { Copy } from "../../i18n";
 import { getKindLabel } from "../../i18n";
 import { StudioIcon } from "../../icons/studio-icons";
 import type { WorkspaceAsset } from "../../stores/media-store";
+import {
+  exportEditedImage,
+  getExportErrorMessage as getImageExportErrorMessage,
+  type ImageExportResult,
+} from "../../utils/image-export";
 import {
   exportEditedVideo,
   getVideoExportErrorMessage,
@@ -33,6 +39,8 @@ import { VideoPreviewWorkbench, type VideoPreviewStatus } from "./VideoPreviewWo
 export function SelectedPreview({
   asset,
   compareOriginal,
+  imageExportSettings,
+  imagePreviewRequestKey,
   imageState,
   isFullscreen,
   onApplyImageAction,
@@ -48,6 +56,8 @@ export function SelectedPreview({
 }: {
   asset: WorkspaceAsset;
   compareOriginal: boolean;
+  imageExportSettings: ImageExportSettings | null;
+  imagePreviewRequestKey: number;
   imageState: ImageEditState | null;
   isFullscreen: boolean;
   onApplyImageAction: (action: ImageEditAction) => void;
@@ -65,7 +75,9 @@ export function SelectedPreview({
   const [isDragging, setIsDragging] = useState(false);
   const [previewBounds, setPreviewBounds] = useState<PreviewBounds | null>(null);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
+  const [derivedImagePreview, setDerivedImagePreview] = useState<DerivedImagePreview | null>(null);
   const [derivedVideoPreview, setDerivedVideoPreview] = useState<DerivedVideoPreview | null>(null);
+  const [imagePreviewNotice, setImagePreviewNotice] = useState<ImagePreviewNotice | null>(null);
   const [isVideoLooping, setIsVideoLooping] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [previewMessage, setPreviewMessage] = useState<string | null>(null);
@@ -74,7 +86,9 @@ export function SelectedPreview({
   const [videoDuration, setVideoDuration] = useState(asset.duration ?? 0);
   const frameRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const imagePreviewRunRef = useRef<symbol | null>(null);
   const videoPreviewAbortRef = useRef<AbortController | null>(null);
+  const lastImagePreviewRequestRef = useRef(imagePreviewRequestKey);
   const lastVideoPreviewRequestRef = useRef(videoPreviewRequestKey);
   const dragRef = useRef({
     isDragging: false,
@@ -83,6 +97,7 @@ export function SelectedPreview({
     startX: 0,
     startY: 0,
   });
+  const imageStateFingerprint = imageState ? JSON.stringify(imageState) : "none";
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -111,6 +126,14 @@ export function SelectedPreview({
 
   useEffect(() => {
     return () => {
+      if (derivedImagePreview) {
+        URL.revokeObjectURL(derivedImagePreview.url);
+      }
+    };
+  }, [derivedImagePreview]);
+
+  useEffect(() => {
+    return () => {
       if (derivedVideoPreview) {
         URL.revokeObjectURL(derivedVideoPreview.url);
       }
@@ -131,6 +154,31 @@ export function SelectedPreview({
     asset.kind === "video" && derivedVideoPreview?.assetId === asset.id
       ? derivedVideoPreview
       : null;
+  const imagePreviewContext =
+    asset.kind === "image" && imageExportSettings
+      ? {
+          assetId: asset.id,
+          format: imageExportSettings.format,
+          quality: imageExportSettings.quality,
+          stateFingerprint: imageStateFingerprint,
+        }
+      : null;
+  const activeDerivedImagePreview =
+    imagePreviewContext &&
+    derivedImagePreview?.assetId === imagePreviewContext.assetId &&
+    derivedImagePreview.format === imagePreviewContext.format &&
+    derivedImagePreview.quality === imagePreviewContext.quality &&
+    derivedImagePreview.stateFingerprint === imagePreviewContext.stateFingerprint
+      ? derivedImagePreview
+      : null;
+  const activeImagePreviewNotice =
+    imagePreviewContext &&
+    imagePreviewNotice?.assetId === imagePreviewContext.assetId &&
+    imagePreviewNotice.format === imagePreviewContext.format &&
+    imagePreviewNotice.quality === imagePreviewContext.quality &&
+    imagePreviewNotice.stateFingerprint === imagePreviewContext.stateFingerprint
+      ? imagePreviewNotice
+      : null;
   const videoSource = activeDerivedVideoPreview?.url ?? asset.objectUrl;
   const effectiveTrimStart =
     activeDerivedVideoPreview || !videoState ? 0 : Math.max(0, videoState.trimStart);
@@ -140,6 +188,66 @@ export function SelectedPreview({
       ? getActiveSubtitleCue(videoState, currentVideoTime)
       : null;
   const isImageAsset = asset.kind === "image";
+  const imagePreviewAspectRatio =
+    activeDerivedImagePreview && activeDerivedImagePreview.height > 0
+      ? activeDerivedImagePreview.width / activeDerivedImagePreview.height
+      : undefined;
+
+  const handleGenerateImagePreview = useCallback(async () => {
+    if (asset.kind !== "image" || !imageState || !imageExportSettings) {
+      return;
+    }
+
+    const runId = Symbol("image-preview");
+    const previewContext = {
+      assetId: asset.id,
+      format: imageExportSettings.format,
+      quality: imageExportSettings.quality,
+      stateFingerprint: imageStateFingerprint,
+    };
+    imagePreviewRunRef.current = runId;
+    setImagePreviewNotice({
+      ...previewContext,
+      message: t.generatingImagePreview,
+      status: "busy",
+    });
+
+    try {
+      const result = await exportEditedImage({
+        asset,
+        format: imageExportSettings.format,
+        quality: imageExportSettings.quality,
+        state: imageState,
+        t,
+      });
+
+      if (imagePreviewRunRef.current !== runId) {
+        URL.revokeObjectURL(result.url);
+        return;
+      }
+
+      setDerivedImagePreview({ ...result, ...previewContext });
+      setImagePreviewNotice({
+        ...previewContext,
+        message: t.imagePreviewReady,
+        status: "ready",
+      });
+    } catch (error) {
+      if (imagePreviewRunRef.current !== runId) {
+        return;
+      }
+
+      setImagePreviewNotice({
+        ...previewContext,
+        message: getImageExportErrorMessage(error, t),
+        status: "failed",
+      });
+    } finally {
+      if (imagePreviewRunRef.current === runId) {
+        imagePreviewRunRef.current = null;
+      }
+    }
+  }, [asset, imageExportSettings, imageState, imageStateFingerprint, t]);
 
   const handleGenerateVideoPreview = useCallback(async () => {
     if (asset.kind !== "video" || !videoState) {
@@ -192,6 +300,18 @@ export function SelectedPreview({
       }
     }
   }, [asset, t, videoState]);
+
+  useEffect(() => {
+    if (imagePreviewRequestKey === lastImagePreviewRequestRef.current) {
+      return;
+    }
+
+    lastImagePreviewRequestRef.current = imagePreviewRequestKey;
+
+    if (imagePreviewRequestKey > 0) {
+      queueMicrotask(() => void handleGenerateImagePreview());
+    }
+  }, [handleGenerateImagePreview, imagePreviewRequestKey]);
 
   useEffect(() => {
     if (videoPreviewRequestKey === lastVideoPreviewRequestRef.current) {
@@ -339,7 +459,9 @@ export function SelectedPreview({
               compareOriginal={compareOriginal}
               imageState={imageState}
               onApplyImageAction={onApplyImageAction}
+              previewAspectRatio={imagePreviewAspectRatio}
               previewBounds={previewBounds}
+              previewSourceUrl={activeDerivedImagePreview?.url}
               t={t}
             />
           </div>
@@ -381,6 +503,16 @@ export function SelectedPreview({
           </div>
         )}
 
+        {isImageAsset && activeImagePreviewNotice ? (
+          <div className={`job-message preview-job-message ${activeImagePreviewNotice.status}`}>
+            <StudioIcon
+              name={activeImagePreviewNotice.status === "failed" ? "warning" : "checkCircle"}
+              size={17}
+            />
+            <span>{activeImagePreviewNotice.message}</span>
+          </div>
+        ) : null}
+
         {isImageAsset ? (
           <PreviewToolbar
             compareOriginal={compareOriginal}
@@ -416,6 +548,22 @@ export function SelectedPreview({
     </section>
   );
 }
+
+type ImagePreviewStatus = "idle" | "busy" | "ready" | "failed";
+
+type ImagePreviewContext = {
+  assetId: string;
+  format: ImageExportSettings["format"];
+  quality: number;
+  stateFingerprint: string;
+};
+
+type ImagePreviewNotice = ImagePreviewContext & {
+  message: string;
+  status: ImagePreviewStatus;
+};
+
+type DerivedImagePreview = ImageExportResult & ImagePreviewContext;
 
 type DerivedVideoPreview = VideoExportResult & {
   assetId: string;
