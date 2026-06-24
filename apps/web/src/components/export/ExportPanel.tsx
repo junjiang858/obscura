@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ImageEditState, ImageExportFormat, VideoEditState } from "@obscura/media-core";
-import {
-  imageExportFormats,
-  supportsImageQuality,
-  type ImageExportSettings,
-} from "../../config/media";
+import { imageExportFormats, type ImageExportSettings } from "../../config/media";
 import type { Copy } from "../../i18n";
 import { StudioIcon } from "../../icons/studio-icons";
 import { useJobStore } from "../../stores/job-store";
@@ -81,8 +77,6 @@ export function ExportPanel({
     selectedAsset?.kind === "video" && selectedAsset.status === "ready" && Boolean(videoState);
   const canExport = canExportImage || canExportVideo;
   const activeExportJob = activeExportJobId ? (jobs[activeExportJobId] ?? null) : null;
-  const activeFormat =
-    selectedAsset?.kind === "video" ? videoState?.exportFormat : imageExportSettings?.format;
   const matchingGeneratedPreview =
     generatedPreview &&
     selectedAsset &&
@@ -296,23 +290,6 @@ export function ExportPanel({
 
   return (
     <div className="export-panel-content">
-      <div className="export-summary">
-        <span>{t.format}</span>
-        <strong>{activeFormat ? activeFormat.toUpperCase() : "--"}</strong>
-        {selectedAsset?.kind === "image" &&
-        imageExportSettings &&
-        supportsImageQuality(imageExportSettings.format) ? (
-          <>
-            <span>{t.quality}</span>
-            <strong>{imageExportSettings.quality}</strong>
-          </>
-        ) : null}
-      </div>
-      <p className="export-helper">
-        {selectedAsset?.kind === "video"
-          ? t.videoExportHelper
-          : (activeImageAvailability?.reason ?? t.imageExportHelper)}
-      </p>
       <button
         className="primary-button full-width"
         disabled={!canExport || status === "busy"}

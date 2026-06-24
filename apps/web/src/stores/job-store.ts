@@ -34,7 +34,9 @@ type JobStore = {
   completeJob: (id: string, message?: string, result?: BackgroundJobResult) => void;
   failJob: (id: string, error: NonNullable<WorkerJob["error"]>) => void;
   cancelJob: (id: string, message?: string) => void;
+  acknowledgeCompletedJobs: () => void;
   clearJob: (id: string) => void;
+  clearCompletedJobs: () => void;
   resetJobs: () => void;
 };
 
@@ -123,6 +125,18 @@ export const useJobStore = create<JobStore>((set) => ({
       };
     });
   },
+  acknowledgeCompletedJobs: () => {
+    set((state) => ({
+      jobs: Object.fromEntries(
+        Object.entries(state.jobs).map(([id, job]) => [
+          id,
+          job.status === "completed" && !job.acknowledgedAt
+            ? { ...job, acknowledgedAt: Date.now() }
+            : job,
+        ]),
+      ),
+    }));
+  },
   clearJob: (id) => {
     set((state) => {
       const nextJobs = { ...state.jobs };
@@ -130,6 +144,15 @@ export const useJobStore = create<JobStore>((set) => ({
 
       return { jobs: nextJobs };
     });
+  },
+  clearCompletedJobs: () => {
+    set((state) => ({
+      jobs: Object.fromEntries(
+        Object.entries(state.jobs).filter(
+          ([, job]) => job.status !== "completed" && job.status !== "canceled",
+        ),
+      ),
+    }));
   },
   resetJobs: () => set({ jobs: {} }),
 }));

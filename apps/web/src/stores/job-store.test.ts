@@ -93,4 +93,51 @@ describe("job store", () => {
       status: "completed",
     });
   });
+
+  it("acknowledges completed jobs without clearing failed or active jobs", () => {
+    useJobStore.getState().resetJobs();
+
+    useJobStore.getState().queueJob("completed-job", "video-preview", "Generating preview");
+    useJobStore.getState().completeJob("completed-job", "Preview ready");
+    useJobStore.getState().queueJob("active-job", "video-export", "Encoding video");
+    useJobStore.getState().updateJob("active-job", {
+      progress: 30,
+      status: "processing",
+    });
+    useJobStore.getState().queueJob("failed-job", "image-export", "Preparing image");
+    useJobStore.getState().failJob("failed-job", {
+      code: "encode-failed",
+      message: "Encode failed",
+      recoverable: true,
+    });
+
+    useJobStore.getState().acknowledgeCompletedJobs();
+
+    expect(useJobStore.getState().jobs["completed-job"]?.acknowledgedAt).toEqual(
+      expect.any(Number),
+    );
+    expect(useJobStore.getState().jobs["active-job"]?.acknowledgedAt).toBeUndefined();
+    expect(useJobStore.getState().jobs["failed-job"]?.acknowledgedAt).toBeUndefined();
+  });
+
+  it("clears completed and canceled history without removing failed jobs", () => {
+    useJobStore.getState().resetJobs();
+
+    useJobStore.getState().queueJob("completed-job", "video-preview", "Generating preview");
+    useJobStore.getState().completeJob("completed-job", "Preview ready");
+    useJobStore.getState().queueJob("canceled-job", "video-export", "Encoding video");
+    useJobStore.getState().cancelJob("canceled-job", "Canceled");
+    useJobStore.getState().queueJob("failed-job", "image-export", "Preparing image");
+    useJobStore.getState().failJob("failed-job", {
+      code: "encode-failed",
+      message: "Encode failed",
+      recoverable: true,
+    });
+
+    useJobStore.getState().clearCompletedJobs();
+
+    expect(useJobStore.getState().jobs["completed-job"]).toBeUndefined();
+    expect(useJobStore.getState().jobs["canceled-job"]).toBeUndefined();
+    expect(useJobStore.getState().jobs["failed-job"]?.status).toBe("failed");
+  });
 });

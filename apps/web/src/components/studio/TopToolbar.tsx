@@ -9,6 +9,9 @@ import { ProcessingCenter } from "./ProcessingCenter";
 export function TopToolbar({
   canEditSelectedImage,
   onApplyImageAction,
+  onAcknowledgeCompletedJobs,
+  onClearCompletedJobs,
+  onClearProcessingJob,
   onLanguageChange,
   onSelectAdjacent,
   processingJobs,
@@ -20,6 +23,9 @@ export function TopToolbar({
   canEditSelectedImage: boolean;
   language: Language;
   onApplyImageAction: (action: ImageEditAction) => void;
+  onAcknowledgeCompletedJobs: () => void;
+  onClearCompletedJobs: () => void;
+  onClearProcessingJob: (jobId: string) => void;
   onLanguageChange: (language: Language) => void;
   onSelectAdjacent: (direction: 1 | -1) => void;
   processingJobs: WorkerJob[];
@@ -90,7 +96,13 @@ export function TopToolbar({
       </div>
 
       <div className="top-settings">
-        <ProcessingCenter jobs={processingJobs} t={t} />
+        <ProcessingCenter
+          jobs={processingJobs}
+          onAcknowledgeCompletedJobs={onAcknowledgeCompletedJobs}
+          onClearCompletedJobs={onClearCompletedJobs}
+          onClearJob={onClearProcessingJob}
+          t={t}
+        />
         <label className="language-control">
           <StudioIcon name="language" size={18} />
           <select

@@ -29,7 +29,7 @@ test("edits and downloads an image without external media upload requests", asyn
   await expect(page.getByRole("heading", { name: /start your creation/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /import media/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /explore templates/i })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /export current asset/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /export asset/i })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /^edit$/i })).toHaveCount(0);
 
   await page
@@ -39,7 +39,7 @@ test("edits and downloads an image without external media upload requests", asyn
   await expect(page.getByText(/privacy status/i)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /^edit$/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /^export$/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /export current asset/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /export asset/i })).toBeVisible();
 
   await page.getByRole("button", { name: /1:1 square/i }).click();
   await page.getByRole("button", { name: /rotate 90/i }).click();
@@ -51,7 +51,7 @@ test("edits and downloads an image without external media upload requests", asyn
   await page.getByLabel(/watermark text/i).fill("Draft");
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: /export current asset/i }).click();
+  await page.getByRole("button", { name: /export asset/i }).click();
   const download = await downloadPromise;
   await expect(page.getByText(/export saved/i)).toBeVisible();
 
@@ -121,7 +121,7 @@ test("supports mobile tabs, keyboard asset switching, and unsupported media stat
 
   await page.getByRole("tab", { name: /^export$/i }).click();
   await expect(page.getByRole("heading", { name: /^export$/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /export current asset/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /export asset/i })).toBeVisible();
 
   await page.getByLabel(/choose media files/i).setInputFiles({
     buffer: Buffer.from("not a supported media file"),
@@ -212,7 +212,7 @@ test("edits and exports a short video with timeline evidence and no media upload
   await expect(page.getByText(/generated/i)).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: /export current asset/i }).click();
+  await page.getByRole("button", { name: /export asset/i }).click();
   const download = await downloadPromise;
 
   await expect(page.getByText(/export saved/i)).toBeVisible({ timeout: 60_000 });

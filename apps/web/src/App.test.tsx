@@ -198,7 +198,7 @@ describe("media workspace shell", () => {
     expectLocalPrivacyBadge(/local & private/i);
     expect(screen.queryByRole("button", { name: /^upload$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /explore templates/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /export current asset/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /export asset/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^edit$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^export$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /explore templates/i })).not.toBeInTheDocument();
@@ -247,7 +247,7 @@ describe("media workspace shell", () => {
     expectLocalPrivacyBadge(/local & private/i);
     expect(screen.getByRole("heading", { name: /^edit$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^export$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /export current asset/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /export asset/i })).toBeInTheDocument();
   });
 
   it("shows a processing queue entry when a background job exists", () => {
@@ -266,6 +266,54 @@ describe("media workspace shell", () => {
     expect(screen.getAllByText("Generate preview").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("clip.webm")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("hides the completed result badge after opening the processing center without deleting history", async () => {
+    const user = userEvent.setup();
+    useJobStore.getState().queueJob("video-preview:asset-1", "video-preview", "Generating", {
+      fingerprint: "asset-1:preview",
+      launchId: "launch-1",
+      sourceAssetId: "asset-1",
+      sourceAssetKind: "video",
+      sourceAssetName: "clip.webm",
+      title: "Format conversion - MOV",
+    });
+    useJobStore.getState().completeJob("video-preview:asset-1", "Preview ready", {
+      filename: "clip-edited.mov",
+      resultAssetId: "asset-generated-1",
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /processing queue \(1\)/i }));
+
+    expect(screen.queryByRole("button", { name: /processing queue \(1\)/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /^processing queue$/i })).toBeInTheDocument();
+    expect(screen.getAllByText("Format conversion - MOV").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("clip.webm")).toBeInTheDocument();
+  });
+
+  it("keeps failed task attention after opening the processing center", async () => {
+    const user = userEvent.setup();
+    useJobStore.getState().queueJob("image-export:asset-1", "image-export", "Preparing", {
+      sourceAssetId: "asset-1",
+      sourceAssetKind: "image",
+      sourceAssetName: "cover.png",
+      title: "Export - WEBP",
+    });
+    useJobStore.getState().failJob("image-export:asset-1", {
+      code: "encode-failed",
+      message: "Encode failed",
+      recoverable: true,
+    });
+
+    render(<App />);
+
+    const queueButton = screen.getByRole("button", { name: /processing queue \(1\)/i });
+    await user.click(queueButton);
+
+    expect(screen.getByRole("button", { name: /processing queue \(1\)/i })).toBeInTheDocument();
+    expect(screen.getByText("Encode failed")).toBeInTheDocument();
   });
 
   it("shows first-frame video posters and distinct media type icons in the library", async () => {
@@ -319,7 +367,7 @@ describe("media workspace shell", () => {
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Image preview ready."));
     expect(screen.getAllByText("cover-photo-edited.webp").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Generated").length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: /export current asset/i }));
+    await user.click(screen.getByRole("button", { name: /export asset/i }));
 
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Export saved."));
     expect(screen.queryByRole("link", { name: /download cover-photo-edited.webp/i })).toBeNull();
@@ -423,7 +471,7 @@ describe("media workspace shell", () => {
     expect(screen.getAllByText("clip-edited.webm").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Generated").length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: /export current asset/i }));
+    await user.click(screen.getByRole("button", { name: /export asset/i }));
 
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Export saved."));
     expect(exportEditedVideoMock).toHaveBeenCalledWith(
@@ -508,7 +556,7 @@ describe("media workspace shell", () => {
 
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Preview ready."));
 
-    await user.click(screen.getByRole("button", { name: /export current asset/i }));
+    await user.click(screen.getByRole("button", { name: /export asset/i }));
 
     expect(saveVideoExportMock).toHaveBeenCalledWith(expect.objectContaining(generatedPreview));
     expect(exportEditedVideoMock).toHaveBeenCalledTimes(1);
@@ -550,7 +598,7 @@ describe("media workspace shell", () => {
     expect(toastInfoMock).not.toHaveBeenCalledWith("Preview stale.");
     expect(screen.queryByText(/preview stale/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /export current asset/i }));
+    await user.click(screen.getByRole("button", { name: /export asset/i }));
 
     expect(exportEditedVideoMock).toHaveBeenCalledTimes(2);
     expect(saveVideoExportMock).toHaveBeenCalledWith(

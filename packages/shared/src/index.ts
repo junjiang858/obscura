@@ -97,6 +97,7 @@ export const workerJobSchema = z.object({
   sourceAssetKind: mediaKindSchema.optional(),
   sourceAssetName: z.string().min(1).optional(),
   title: z.string().min(1).optional(),
+  acknowledgedAt: z.number().nonnegative().optional(),
   error: z
     .object({
       code: z.string().min(1),

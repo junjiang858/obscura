@@ -88,6 +88,9 @@ export default function App() {
   const updateJob = useJobStore((state) => state.updateJob);
   const completeJob = useJobStore((state) => state.completeJob);
   const failJob = useJobStore((state) => state.failJob);
+  const acknowledgeCompletedJobs = useJobStore((state) => state.acknowledgeCompletedJobs);
+  const clearJob = useJobStore((state) => state.clearJob);
+  const clearCompletedJobs = useJobStore((state) => state.clearCompletedJobs);
 
   const visibleAssets = useMemo(() => getVisibleAssets(assets, filter), [assets, filter]);
   const processingJobs = useMemo(() => Object.values(jobs), [jobs]);
@@ -588,7 +591,10 @@ export default function App() {
         <TopToolbar
           canEditSelectedImage={canEditSelectedImage}
           language={language}
+          onAcknowledgeCompletedJobs={acknowledgeCompletedJobs}
           onApplyImageAction={handleApplyImageAction}
+          onClearCompletedJobs={clearCompletedJobs}
+          onClearProcessingJob={clearJob}
           onLanguageChange={setLanguage}
           onSelectAdjacent={selectAdjacent}
           processingJobs={processingJobs}

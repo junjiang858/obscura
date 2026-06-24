@@ -64,6 +64,7 @@ export function EditorRail({
   const tabListRef = useRef<HTMLDivElement>(null);
   const tabs = getEditorTabs(selectedAsset, t);
   const visibleActiveTab = tabs.some((tab) => tab.id === activeTab) ? activeTab : tabs[0]?.id;
+  const activeExportFormat = getActiveExportFormat(selectedAsset, imageExportSettings, videoState);
 
   function scrollTabs(direction: 1 | -1) {
     tabListRef.current?.scrollBy({ behavior: "smooth", left: direction * 140 });
@@ -146,7 +147,19 @@ export function EditorRail({
       </section>
 
       <section className="panel export-panel">
-        <PanelHeader eyebrow={t.output} icon="download" title={t.export} />
+        <PanelHeader
+          action={
+            activeExportFormat ? (
+              <span className="export-format-chip">
+                <span>{t.format}</span>
+                <strong>{activeExportFormat.toUpperCase()}</strong>
+              </span>
+            ) : undefined
+          }
+          eyebrow={t.output}
+          icon="download"
+          title={t.export}
+        />
         <ExportPanel
           currentPreviewFingerprint={currentPreviewFingerprint}
           generatedPreview={generatedPreview}
@@ -189,4 +202,20 @@ function getEditorTabs(asset: WorkspaceAsset | null, t: Copy): EditorTab[] {
     { icon: "formatPaint", id: "format", label: t.formatTab },
     { icon: "backgroundReplace", id: "background", label: t.backgroundTab },
   ];
+}
+
+function getActiveExportFormat(
+  asset: WorkspaceAsset | null,
+  imageExportSettings: ImageExportSettings | null,
+  videoState: VideoEditState | null,
+) {
+  if (asset?.kind === "video") {
+    return videoState?.exportFormat ?? null;
+  }
+
+  if (asset?.kind === "image") {
+    return imageExportSettings?.format ?? null;
+  }
+
+  return null;
 }
