@@ -1,5 +1,5 @@
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 test("edits and downloads an image without external media upload requests", async ({ page }) => {
   const externalRequests: string[] = [];
@@ -53,9 +53,8 @@ test("edits and downloads an image without external media upload requests", asyn
   await page
     .getByLabel(/watermark image/i)
     .setInputFiles(path.join(import.meta.dirname, "../fixtures/local-image.svg"));
-  await expect(
-    page.locator(".annotation-row").filter({ hasText: "local-image.svg" }),
-  ).toBeVisible();
+  await expect(page.locator(".watermark-file-picker")).toContainText("local-image.svg");
+  await expectNoDocumentOverflow(page);
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /export asset/i }).click();
@@ -226,3 +225,20 @@ test("edits and exports a short video with timeline evidence and no media upload
   expect(download.suggestedFilename()).toBe("local-video-edited.mp4");
   expect(externalRequests).toEqual([]);
 });
+
+async function expectNoDocumentOverflow(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    )
+    .toBe(0);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+      ),
+    )
+    .toBe(0);
+}

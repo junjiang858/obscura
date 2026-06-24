@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type {
   ImageAnnotation,
   ImageEditAction,
@@ -58,6 +58,10 @@ export function ImageEditorPanel({
     backgroundRemovalJob?.status === "loading" ||
     backgroundRemovalJob?.status === "processing";
   const activeImageAvailability = exportSettings ? imageAvailability[exportSettings.format] : null;
+  const watermarkOpacityPercent = Math.round(imageState.watermarkLayer.opacity * 100);
+  const watermarkOpacityStyle = {
+    "--range-progress": `${watermarkOpacityPercent}%`,
+  } as CSSProperties;
 
   useEffect(() => {
     let canceled = false;
@@ -120,6 +124,15 @@ export function ImageEditorPanel({
       }
     };
     reader.readAsDataURL(file);
+  }
+
+  function updateWatermarkOpacity(value: number) {
+    const opacity = Math.min(100, Math.max(5, Math.round(value)));
+
+    onApply({
+      patch: { opacity: opacity / 100 },
+      type: "update-watermark-layer",
+    });
   }
 
   return (
@@ -279,47 +292,65 @@ export function ImageEditorPanel({
               ))}
             </select>
           </div>
-          <div className="form-field">
-            <label htmlFor="watermark-opacity">{t.watermarkOpacity}</label>
-            <input
-              id="watermark-opacity"
-              max={100}
-              min={5}
-              onChange={(event) =>
-                onApply({
-                  patch: { opacity: Number(event.currentTarget.value) / 100 },
-                  type: "update-watermark-layer",
-                })
-              }
-              type="range"
-              value={Math.round(imageState.watermarkLayer.opacity * 100)}
-            />
+          <div className="adjustment-control watermark-opacity-control">
+            <div className="adjustment-label-row">
+              <label htmlFor="watermark-opacity">{t.watermarkOpacity}</label>
+              <output htmlFor="watermark-opacity">{watermarkOpacityPercent}%</output>
+            </div>
+            <div className="adjustment-input-row">
+              <input
+                aria-label={t.watermarkOpacityPercent}
+                max={100}
+                min={5}
+                onChange={(event) => updateWatermarkOpacity(Number(event.currentTarget.value))}
+                type="number"
+                value={watermarkOpacityPercent}
+              />
+              <input
+                id="watermark-opacity"
+                max={100}
+                min={5}
+                onChange={(event) => updateWatermarkOpacity(Number(event.currentTarget.value))}
+                style={watermarkOpacityStyle}
+                type="range"
+                value={watermarkOpacityPercent}
+              />
+            </div>
           </div>
           <div className="form-field">
-            <label htmlFor="watermark-image">{t.watermarkImage}</label>
-            <input
-              accept="image/*"
-              id="watermark-image"
-              onChange={(event) => {
-                handleWatermarkImageChange(event.currentTarget.files?.[0]);
-                event.currentTarget.value = "";
-              }}
-              type="file"
-            />
+            <p className="field-label">{t.watermarkImage}</p>
+            <div className="watermark-file-picker">
+              <input
+                accept="image/*"
+                aria-label={t.watermarkImage}
+                className="sr-only"
+                id="watermark-image"
+                onChange={(event) => {
+                  handleWatermarkImageChange(event.currentTarget.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+                type="file"
+              />
+              <label className="watermark-file-trigger" htmlFor="watermark-image">
+                <StudioIcon name="uploadFile" size={18} />
+                <span>{t.chooseWatermarkImage}</span>
+              </label>
+              <span className="watermark-file-name">
+                {imageState.watermarkImageName ?? t.noWatermarkImage}
+              </span>
+              {imageState.watermarkImageName ? (
+                <button
+                  aria-label={t.clearWatermarkImage}
+                  className="watermark-file-clear"
+                  onClick={() => onApply({ type: "clear-watermark-image" })}
+                  type="button"
+                >
+                  <StudioIcon name="close" size={16} />
+                </button>
+              ) : null}
+            </div>
             <p className="field-helper">{t.watermarkImageHelper}</p>
           </div>
-          {imageState.watermarkImageName ? (
-            <div className="annotation-row">
-              <span>{imageState.watermarkImageName}</span>
-              <button
-                aria-label={t.clearWatermarkImage}
-                onClick={() => onApply({ type: "clear-watermark-image" })}
-                type="button"
-              >
-                <StudioIcon name="close" size={16} />
-              </button>
-            </div>
-          ) : null}
           <div className="annotation-controls">
             <p className="field-label">{t.annotations}</p>
             <div className="tool-grid two-col">
